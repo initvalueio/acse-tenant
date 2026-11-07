@@ -7,16 +7,12 @@ mock_provider "google" {
       number = "123456789012"
     }
   }
-  mock_resource "google_iam_workload_identity_pool_provider" {
-    defaults = {
-      name = "projects/123456789012/locations/global/workloadIdentityPools/acse-setup/providers/github"
-    }
-  }
 }
 
 variables {
-  project_id       = "example-project"
-  setup_repository = "example-org/acse-setup"
+  gcp_setup_project              = "example-acse-setup"
+  gcp_setup_project_is_dedicated = true
+  setup_repository               = "example-org/acse-setup"
   setup_oidc_subjects = {
     apply = "repo:example-org/acse-setup:environment:acse-setup-apply:job_workflow_ref:example-org/acse-setup/.github/workflows/acse-setup-apply.yml@refs/heads/main"
     plan  = "repo:example-org/acse-setup:ref:refs/heads/main:job_workflow_ref:example-org/acse-setup/.github/workflows/acse-setup-apply.yml@refs/heads/main"
@@ -29,6 +25,11 @@ variables {
 
 run "binds_each_job_to_its_exact_subject" {
   command = apply
+
+  override_resource {
+    target = google_iam_workload_identity_pool_provider.github
+    values = { name = "projects/123456789012/locations/global/workloadIdentityPools/acse-setup/providers/github" }
+  }
 
   assert {
     condition     = google_iam_workload_identity_pool_provider.github.attribute_mapping["attribute.acse_job"] == "assertion.sub == '${var.setup_oidc_subjects.apply}' ? 'apply' : (assertion.sub == '${var.setup_oidc_subjects.plan}' ? 'plan' : ((assertion.sub.startsWith('repo:example-org/acse-setup:pull_request:job_workflow_ref:example-org/acse-setup/.github/workflows/acse-setup-apply.yml@refs/pull/') && assertion.sub.endsWith('/merge')) ? 'check' : 'none'))"
@@ -59,6 +60,93 @@ run "binds_each_job_to_its_exact_subject" {
     condition     = length(google_project_iam_member.job) == 6 && output.workload_identity_provider == "//iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/acse-setup/providers/github"
     error_message = "Two project roles per job by default; the provider name is the external_account audience."
   }
+  assert {
+    condition = (
+      google_project_iam_member.job["apply/roles/editor"].project == "example-acse-setup"
+      && google_project_iam_member.job["apply/roles/iam.securityAdmin"].project == "example-acse-setup"
+      && length([for m in google_project_iam_member.job : m if m.member == output.principals.apply]) == 2
+      && alltrue([for m in google_project_iam_member.job : m.project == "example-acse-setup"])
+    )
+    error_message = "The apply job gets exactly roles/editor and roles/iam.securityAdmin, on the dedicated project only."
+  }
+  assert {
+    condition     = length(google_iam_workload_identity_pool_provider.promoter) == 0 && output.promoter_workload_identity_provider == null && output.promoter_key_secret_name == null
+    error_message = "Without a promoter there is no promoter provider."
+  }
+}
+
+run "the_promoter_reads_exactly_its_key" {
+  command = apply
+
+  variables {
+    promoter = {
+      repository       = "example-org/acse-outbox"
+      subject          = "repo:example-org/acse-outbox:ref:refs/heads/main"
+      job_workflow_ref = "example-org/acse-outbox/.github/workflows/acse-promote.yml@refs/heads/main"
+      secret_id        = "projects/example-acse-setup/secrets/acse-promoter-app-private-key"
+    }
+  }
+
+  override_resource {
+    target = google_iam_workload_identity_pool_provider.promoter
+    values = { name = "projects/123456789012/locations/global/workloadIdentityPools/acse-setup/providers/github-promoter" }
+  }
+
+  assert {
+    condition     = google_iam_workload_identity_pool_provider.promoter[0].attribute_mapping["attribute.acse_job"] == "(assertion.sub == 'repo:example-org/acse-outbox:ref:refs/heads/main' && assertion.job_workflow_ref == 'example-org/acse-outbox/.github/workflows/acse-promote.yml@refs/heads/main') ? 'promote' : 'none'"
+    error_message = "The promoter maps only acse-promote.yml on the outbox's default branch."
+  }
+  assert {
+    condition     = google_iam_workload_identity_pool_provider.promoter[0].attribute_condition == "assertion.repository == 'example-org/acse-outbox' && attribute.acse_job == 'promote'" && jsonencode(google_iam_workload_identity_pool_provider.promoter[0].oidc[0].allowed_audiences) == jsonencode(["acse-promote-gcp"])
+    error_message = "The promoter's provider accepts only the outbox repository's promoter token, audience acse-promote-gcp."
+  }
+  assert {
+    condition     = length([for r in google_secret_manager_secret_iam_member.reader : r if r.member == output.principals.promote]) == 1 && google_secret_manager_secret_iam_member.reader["promote/acse-promoter-app-private-key"].member == output.principals.promote
+    error_message = "The promoter reads exactly its own key."
+  }
+  assert {
+    condition     = google_secret_manager_secret_iam_member.reader["apply/acse-setup-app-private-key"].member != output.principals.promote && google_secret_manager_secret_iam_member.reader["plan/acse-setup-plan-app-private-key"].member != output.principals.promote && length([for m in google_project_iam_member.job : m if m.member == output.principals.promote]) == 0
+    error_message = "The promoter never reads the setup or plan key and holds no project role."
+  }
+  assert {
+    condition     = output.promoter_workload_identity_provider == "//iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/acse-setup/providers/github-promoter" && output.promoter_key_secret_name == "projects/example-acse-setup/secrets/acse-promoter-app-private-key" && output.promoter_audience == "acse-promote-gcp"
+    error_message = "The outputs the core lane and tenant.yaml reference."
+  }
+}
+
+run "refuses_an_unconfirmed_project" {
+  command = plan
+
+  variables {
+    gcp_setup_project_is_dedicated = false
+  }
+
+  expect_failures = [google_iam_workload_identity_pool.setup]
+}
+
+run "refuses_a_secret_in_another_project" {
+  command = plan
+
+  variables {
+    setup_credential_secret_id = "projects/some-other-project/secrets/acse-setup-app-private-key"
+  }
+
+  expect_failures = [google_iam_workload_identity_pool.setup]
+}
+
+run "refuses_the_setup_key_as_the_promoter_key" {
+  command = plan
+
+  variables {
+    promoter = {
+      repository       = "example-org/acse-outbox"
+      subject          = "repo:example-org/acse-outbox:ref:refs/heads/main"
+      job_workflow_ref = "example-org/acse-outbox/.github/workflows/acse-promote.yml@refs/heads/main"
+      secret_id        = "acse-setup-app-private-key"
+    }
+  }
+
+  expect_failures = [google_iam_workload_identity_pool.setup]
 }
 
 run "refuses_subjects_that_are_not_the_modules" {

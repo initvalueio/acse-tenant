@@ -135,6 +135,10 @@ resource "terraform_data" "tenant_config" {
       error_message = "With setup_credential_secret_arn set, setup_plan_credential_secret_arn is required: the read-only App's key, in the same account as the setup App's key (cloud.account when self-hosted), outside ${local.namespace}/, and not the setup App's key."
     }
     precondition {
+      condition     = local.setup_gcp == (var.gcp_setup_project != null)
+      error_message = "setup_credential_store = gcp requires gcp_setup_project, and only then: a DEDICATED Google Cloud project that holds the workload identity pool, the setup, plan and (Outbox, SaaS) promoter App keys and nothing else. The apply job gets roles/editor and roles/iam.securityAdmin on it. Terraform cannot check that the project holds nothing else; that is your requirement."
+    }
+    precondition {
       condition     = !local.setup_gcp || (var.setup_credential_secret_arn == null && var.setup_plan_credential_secret_arn == null)
       error_message = "With setup_credential_store = gcp, the App keys are in Google Cloud Secret Manager: leave setup_credential_secret_arn and setup_plan_credential_secret_arn unset (modules/gcp-setup-credential takes their secret ids)."
     }

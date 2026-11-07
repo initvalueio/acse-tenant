@@ -1,6 +1,17 @@
-variable "project_id" {
-  description = "Your Google Cloud project that holds the setup secrets and the workload identity pool."
+variable "gcp_setup_project" {
+  description = "The project id of your DEDICATED setup project: it holds this pool, the setup and plan App keys, the ACSE App keys (SaaS) and the promoter key (Outbox), and nothing else. The apply job gets roles/editor and roles/iam.securityAdmin on this project only."
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.gcp_setup_project))
+    error_message = "gcp_setup_project must be a Google Cloud project id."
+  }
+}
+
+variable "gcp_setup_project_is_dedicated" {
+  description = "You confirm that gcp_setup_project holds nothing but what this module lists. Terraform cannot check it; the plan refuses until it is true."
+  type        = bool
+  default     = false
 }
 
 variable "setup_repository" {
@@ -56,12 +67,6 @@ variable "audience" {
   default     = "acse-setup-gcp"
 }
 
-variable "apply_project_roles" {
-  description = "Project roles for the apply job, so it can maintain this module's pool, provider and grants on later applies. Broad by design, as the AWS apply role's AdministratorAccess: no service-level lists."
-  type        = list(string)
-  default     = ["roles/editor", "roles/iam.securityAdmin"]
-}
-
 variable "plan_project_roles" {
   description = "Project roles for the post-merge plan job: broad read, including IAM policies."
   type        = list(string)
@@ -72,4 +77,27 @@ variable "check_project_roles" {
   description = "Project roles for the pull request's check job: broad read. It reads no secret."
   type        = list(string)
   default     = ["roles/viewer", "roles/iam.securityReviewer"]
+}
+
+variable "promoter" {
+  description = "Outbox tenants: the acse-tenant module's promoter_oidc output (repository, subject, job_workflow_ref) plus secret_id, the promoter App key's Secret Manager secret in this project. acse-promote.yml gets its own provider and principal, which read exactly that secret and nothing else. Null: no promoter."
+  type = object({
+    repository       = string
+    subject          = string
+    job_workflow_ref = string
+    secret_id        = string
+  })
+  default = null
+}
+
+variable "promoter_provider_id" {
+  description = "Workload identity pool provider id for acse-promote.yml."
+  type        = string
+  default     = "github-promoter"
+}
+
+variable "promoter_audience" {
+  description = "The audience acse-promote.yml requests for its GCP token. Promoter template 1.1.0 (core) must use the same value."
+  type        = string
+  default     = "acse-promote-gcp"
 }

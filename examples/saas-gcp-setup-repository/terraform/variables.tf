@@ -31,9 +31,21 @@ variable "saas_publish_role_arn" {
   type        = string
 }
 
-variable "gcp_project_id" {
-  description = "Your Google Cloud project that holds the keys and the workload identity pool."
+variable "gcp_setup_project" {
+  description = "Your DEDICATED Google Cloud setup project: it holds the workload identity pool, the setup, plan and ACSE App keys and, for Outbox tenants, the promoter key, and nothing else. The apply job gets roles/editor and roles/iam.securityAdmin on it."
   type        = string
+}
+
+variable "gcp_setup_project_is_dedicated" {
+  description = "Confirm that gcp_setup_project holds nothing else. Terraform cannot check it; the plan refuses until it is true."
+  type        = bool
+  default     = false
+}
+
+variable "promoter_key_secret_id" {
+  description = "Outbox tenants: the Secret Manager secret in gcp_setup_project that holds the promoter App's key. Only acse-promote.yml can read it (its own WIF principal); it never goes into InitValue's namespace."
+  type        = string
+  default     = null
 }
 
 variable "gcp_workload_identity_provider" {
@@ -42,7 +54,7 @@ variable "gcp_workload_identity_provider" {
 }
 
 variable "setup_app" {
-  description = "Your own setup GitHub App, not ACSE Read or ACSE Change: organization administration write (rulesets); contents and pull requests write on the policies repository; administration write on the setup repository (environment, OIDC subject template). Its key is in a Secret Manager secret in gcp_project_id that only the apply job can read."
+  description = "Your own setup GitHub App, not ACSE Read or ACSE Change: organization administration write (rulesets); contents and pull requests write on the policies repository; administration write on the setup repository (environment, OIDC subject template). Its key is in a Secret Manager secret in gcp_setup_project that only the apply job can read."
   type = object({
     id                    = number
     installation_id       = number

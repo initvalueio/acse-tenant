@@ -28,7 +28,7 @@ locals {
 }
 
 provider "google" {
-  project = var.gcp_project_id
+  project = var.gcp_setup_project
 
   # An external_account credential: Google's STS exchanges the GitHub token directly, with no service account.
   credentials = var.use_web_identity ? jsonencode({

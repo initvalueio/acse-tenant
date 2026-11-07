@@ -256,13 +256,24 @@ variable "setup_apply_environment_reviewers" {
 }
 
 variable "setup_credential_store" {
-  description = "Where the setup and plan Apps' keys live (spec 02e Amendment 6 SA-5). aws (default): Secrets Manager secrets named by setup_credential_secret_arn and setup_plan_credential_secret_arn; the module creates the three IAM roles and the secrets' resource policies. gcp: Secret Manager in your own Google Cloud project, reached through Workload Identity Federation; this module then creates no AWS identity, and modules/gcp-setup-credential creates the pool, the provider and the secret grants from this module's setup_oidc_subjects output. Either way the module creates the apply environment and the OIDC subject template."
+  description = "Where the setup and plan Apps' keys live (spec 02e Amendment 6 SA-5). aws (default): Secrets Manager secrets named by setup_credential_secret_arn and setup_plan_credential_secret_arn; the module creates the three IAM roles and the secrets' resource policies. gcp: Secret Manager in your own DEDICATED Google Cloud project (gcp_setup_project), reached through Workload Identity Federation; this module then creates no AWS identity, and modules/gcp-setup-credential creates the pool, the provider and the secret grants from this module's setup_oidc_subjects output. Either way the module creates the apply environment and the OIDC subject template."
   type        = string
   default     = "aws"
 
   validation {
     condition     = contains(["aws", "gcp"], var.setup_credential_store)
     error_message = "setup_credential_store must be aws or gcp."
+  }
+}
+
+variable "gcp_setup_project" {
+  description = "With setup_credential_store = gcp: the project id of your DEDICATED setup project. It holds only the workload identity pool, the setup App's key, the plan App's key and, for Outbox tenants in SaaS mode, the promoter App's key, and nothing else (Koushik, 2026-11-07: \"Dedicated Project, broad roles\"). The apply job gets roles/editor and roles/iam.securityAdmin on this project only. The plan cannot verify that the project holds nothing else: that is your requirement. Pass the same value to modules/gcp-setup-credential."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.gcp_setup_project == null || can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.gcp_setup_project))
+    error_message = "gcp_setup_project must be a Google Cloud project id."
   }
 }
 

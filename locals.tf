@@ -17,6 +17,9 @@ locals {
   # settings/* and the App keys write-only through saas_publish_role_arn (saas.tf).
   saas         = var.saas_publish_role_arn != null
   saas_publish = local.saas && var.saas_publish_on_apply
+  # SaaS with a GCP setup project: the promoter's App key lives in that dedicated project, read by acse-promote.yml
+  # through its own WIF principal, and never in InitValue's namespace (Koushik, 2026-11-07; SA-6 as amended).
+  promoter_key_in_gcp = local.saas && var.setup_credential_store == "gcp" && local.has_outbox
 
   # -- repositories ---------------------------------------------------------------------------------------------
   repositories  = local.config.repositories
@@ -49,7 +52,7 @@ locals {
       "evidence/seal-key/next"    = "The ACSE runtime's next evidence seal key, set during a rotation. Written by keygen; read by the runtime."
       "tfc/token"                 = "A read-only Terraform Cloud/Enterprise team token. Put in by the customer's pipeline; read by the runtime."
     },
-    local.has_outbox ? {
+    local.has_outbox && !local.promoter_key_in_gcp ? {
       "outbox/promoter/private-key" = "The private key (PEM) of the customer's promoter GitHub App. Put in by the customer's pipeline; read by acse-promote.yml through cloud.workflow_role (OIDC)."
     } : {},
   )

@@ -52,6 +52,7 @@ module "acse_tenant" {
 
   # SA-5: the setup and plan Apps' keys are in Google Cloud Secret Manager.
   setup_credential_store            = "gcp"
+  gcp_setup_project                 = var.gcp_setup_project
   setup_default_branch              = var.default_branches.setup
   policies_default_branch           = var.default_branches.policies
   setup_oidc_subject_repo           = var.setup_oidc_subject_repo
@@ -67,12 +68,21 @@ module "gcp_setup_credential" {
   # In your repository: source = "github.com/initvalueio/acse-tenant//modules/gcp-setup-credential?ref=v1.1.0"
   source = "../../../modules/gcp-setup-credential"
 
-  project_id                      = var.gcp_project_id
+  gcp_setup_project               = var.gcp_setup_project
+  gcp_setup_project_is_dedicated  = var.gcp_setup_project_is_dedicated
   setup_repository                = local.tenant.repositories.setup
   setup_oidc_subjects             = module.acse_tenant.setup_oidc_subjects
   setup_credential_secret_id      = var.setup_app.private_key_secret_id
   setup_plan_credential_secret_id = var.plan_app.private_key_secret_id
   app_key_secret_ids              = [var.acse_app_keys.read_secret_id, var.acse_app_keys.change_secret_id]
+
+  # Outbox tenants: acse-promote.yml gets its own provider and principal, which read exactly the promoter key.
+  promoter = module.acse_tenant.promoter_oidc == null ? null : {
+    repository       = module.acse_tenant.promoter_oidc.repository
+    subject          = module.acse_tenant.promoter_oidc.subject
+    job_workflow_ref = module.acse_tenant.promoter_oidc.job_workflow_ref
+    secret_id        = var.promoter_key_secret_id
+  }
 }
 
 output "acse_tenant" {
@@ -82,7 +92,10 @@ output "acse_tenant" {
     saas                       = module.acse_tenant.saas
     setup_oidc_subjects        = module.acse_tenant.setup_oidc_subjects
     workload_identity_provider = module.gcp_setup_credential.workload_identity_provider
-    rulesets                   = module.acse_tenant.ruleset_ids
-    pull_requests              = module.acse_tenant.generated_file_pull_requests
+    # For the outbox's acse-promote.yml (promoter template 1.1.0) and tenant.yaml.
+    promoter_workload_identity_provider = module.gcp_setup_credential.promoter_workload_identity_provider
+    promoter_key_secret_name            = module.gcp_setup_credential.promoter_key_secret_name
+    rulesets                            = module.acse_tenant.ruleset_ids
+    pull_requests                       = module.acse_tenant.generated_file_pull_requests
   }
 }

@@ -115,6 +115,7 @@ Further rules:
 | `setup_oidc_subject_repo` / `outbox_oidc_subject_repo` | `null` | The repo segment of each repository's OIDC `sub`: `owner/name`, or `owner@id/name@id` for repositories on GitHub's immutable subject format. Those are repositories created after 2026-07-15, or ones that opted in (DEC-29) |
 | `setup_default_branch` | `null` | **Required** with `setup_credential_secret_arn`: a pull request's plan cannot look it up |
 | `setup_credential_store` | `"aws"` | Where the setup and plan Apps' keys live: `aws` (the two secret ARNs) or `gcp` (Google Cloud Secret Manager; no AWS setup roles, see `modules/gcp-setup-credential`; SA-5) |
+| `gcp_setup_project` | `null` | **Required with `gcp`, and only then:** your **dedicated** GCP setup project, which holds only the pool and the setup, plan, ACSE App and promoter keys. The apply job gets `roles/editor` and `roles/iam.securityAdmin` on it only. That it holds nothing else is your requirement; the plan cannot check it |
 | `runtime_role_arn` | `null` | Only to refuse a setup role that is the runtime's |
 | `saas_publish_role_arn` | `null` | **SaaS mode** when set: the per-tenant publish role in InitValue's runtime account (must be `cloud.account`). Needs a setup credential (`aws` or `gcp`), and refuses `create_github_oidc_provider` |
 | `saas_publish_on_apply` | `true` | `false` only for the one-time bootstrap apply, which cannot assume the publish role |
@@ -135,7 +136,8 @@ These outputs name what the module built:
 - `settings_parameter_names`, `settings_values`, `evidence_public_key_parameter_name` and `parameter_arn_prefix`;
 - `oidc_provider_arn`, `promoter_role_arn`, `promoter_trust_subject`, `promoter_trust_policy`,
   `promoter_read_policy` and `promoter_store_reads`;
-- `ruleset_ids`, `setup_roles` and `setup_oidc_subjects`;
+- `ruleset_ids`, `setup_roles`, `setup_oidc_subjects`, `gcp_setup_project` and `promoter_oidc` (what the promoter's
+  WIF provider binds, with `key_in_gcp`);
 - `saas`: the publish role, its policy and trust for InitValue's pipeline, the published names, and what was skipped.
 - `settings_index_values`, `settings_part_names`, `settings_part_values` and `settings_payloads`.
 
@@ -253,21 +255,45 @@ What changes:
 - **For InitValue's pipeline:** the `saas` output renders the publish role's exact policy and trust
   (`publish_policy`, `publish_trust_policy`); the vectors carry them too.
 
-### A setup credential in Google Cloud (SA-5)
+### A setup credential in Google Cloud (SA-5): a dedicated project
 
-Set `setup_credential_store = "gcp"` and call [`modules/gcp-setup-credential`](modules/gcp-setup-credential) with the
-module's `setup_oidc_subjects` output. It creates one workload identity pool and GitHub provider in your project, and
-grants Secret Manager access to federated principals directly, with no service account:
-- the token's exact `sub` (the same SC-1 subjects the AWS roles trust) maps to `attribute.acse_job`: `apply`, `plan`,
-  `check`, or `none`, which the provider refuses;
-- only `apply` reads the setup App's key and the ACSE App keys; only `plan` reads the read-only App's key; `check`
-  reads nothing.
+Set `setup_credential_store = "gcp"` and `gcp_setup_project`, and call
+[`modules/gcp-setup-credential`](modules/gcp-setup-credential) with the same project, the module's
+`setup_oidc_subjects` and, for Outbox tenants, its `promoter_oidc` output.
 
-Secret Manager IAM only allows; it has no resource-level deny like the AWS secrets' policies. Keep these secrets in a
-project where nobody else holds a project-level accessor or owner role. The template (1.1.0) also issues a token for
-audience `acse-setup-gcp`, as `TF_VAR_acse_gcp_web_identity_token_file`. The apply job then federates twice: to Google
-Cloud for the keys, and to InitValue's publish role. The full root is in
-[`examples/saas-gcp-setup-repository`](examples/saas-gcp-setup-repository).
+**The project must be dedicated (Koushik, 2026-11-07: "Dedicated Project, broad roles").** It holds only:
+- the workload identity pool and its providers;
+- the setup App's key and the read-only plan App's key;
+- in SaaS mode, the ACSE Read and Change App keys the apply puts into InitValue's namespace;
+- for Outbox tenants, the **promoter App's key**.
+
+Nothing else may be in it. The apply job gets `roles/editor` and `roles/iam.securityAdmin` on that project, and on no
+other project and never organization-wide. The roles are broad, but the blast radius is one otherwise empty project.
+Terraform cannot verify that the project holds nothing else, so this is your requirement: the GCP module refuses to
+plan until you set `gcp_setup_project_is_dedicated = true`. It also refuses a secret that names another project.
+
+Inside the pool, grants go to federated principals directly, with no service account:
+- **The setup provider** (setup repository, audience `acse-setup-gcp`) maps the token's exact `sub`, the same SC-1
+  subjects the AWS roles trust, to `attribute.acse_job`:
+  - `apply` reads the setup key and the ACSE App keys;
+  - `plan` reads only the read-only key;
+  - `check` reads nothing;
+  - anything else maps to `none`, which the provider refuses.
+- **The promoter provider** (outbox repository, audience `acse-promote-gcp`) maps only `acse-promote.yml` on the
+  outbox's default branch (its `sub` and `job_workflow_ref`) to `promote`. That principal reads exactly the promoter
+  key: never the setup or plan key, and no project role.
+
+In SaaS mode the promoter key therefore never goes into InitValue's namespace. The module creates no
+`outbox/promoter/private-key` there, and the promoter's AWS read policy, rendered for InitValue's pipeline, grants the
+three parameters only. Promoter template 1.1.0 (core) reads the key from Secret Manager through WIF, using the GCP
+module's outputs:
+- `promoter_workload_identity_provider`, the external_account audience;
+- `promoter_key_secret_name` (`projects/<project>/secrets/<name>`);
+- `promoter_audience`.
+
+Template 1.1.0 of `acse-setup-apply.yml` also issues a token for audience `acse-setup-gcp`, as
+`TF_VAR_acse_gcp_web_identity_token_file`. The apply job then federates twice: to Google Cloud for the keys, and to
+InitValue's publish role. The full root is in [`examples/saas-gcp-setup-repository`](examples/saas-gcp-setup-repository).
 
 ## Tests
 

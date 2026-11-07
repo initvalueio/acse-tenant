@@ -84,7 +84,7 @@ output "promoter_read_policy" {
 }
 
 output "promoter_store_reads" {
-  description = "The four store entries the promoter reads: the three parameter names and the one secret name."
+  description = "The four store entries the promoter reads: the three parameter names and the one secret name. secret is null in SaaS mode with a GCP setup project, where the key is in that project (promoter_oidc.key_in_gcp)."
   value = local.has_outbox ? {
     parameters = local.promoter_parameter_names
     secret     = try(local.secret_names["outbox/promoter/private-key"], null)
@@ -98,6 +98,21 @@ output "setup_oidc_subjects" {
     plan  = local.setup_plan_subject
     check = local.setup_check_subject
   } : null
+}
+
+output "promoter_oidc" {
+  description = "Outbox tenants: what acse-promote.yml's OIDC token carries, for modules/gcp-setup-credential's promoter mapping. key_in_gcp is true in SaaS mode with setup_credential_store = gcp: the promoter's App key then lives in the dedicated GCP setup project, not in the namespace. Null without an outbox."
+  value = local.has_outbox ? {
+    repository       = local.outbox_full
+    subject          = local.promoter_subject
+    job_workflow_ref = local.promoter_workflow_ref
+    key_in_gcp       = local.promoter_key_in_gcp
+  } : null
+}
+
+output "gcp_setup_project" {
+  description = "The dedicated GCP setup project (setup_credential_store = gcp), or null."
+  value       = local.setup_gcp ? var.gcp_setup_project : null
 }
 
 output "saas" {

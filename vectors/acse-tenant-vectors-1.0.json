@@ -124,6 +124,18 @@
       "created_by": "InitValue's infrastructure pipeline, per tenant (SA-2); the module only renders publish_policy and publish_trust_policy"
     }
   },
+  "gcp_setup_project": {
+    "when": "setup_credential_store is gcp (SA-5; Koushik, 2026-11-07: \"I prefer Dedicated Project, broad roles..... but also ensure the promoter keu for outbox tenants also lives here in this project\")",
+    "holds": "the workload identity pool and its providers, the setup App key, the plan App key, the ACSE Read and Change App keys (SaaS), and the promoter App key (Outbox, SaaS); nothing else, which the customer confirms (gcp_setup_project_is_dedicated) because Terraform cannot check it",
+    "grants": {
+      "apply": "roles/editor and roles/iam.securityAdmin on that project only; reads the setup key and the ACSE App keys",
+      "plan": "plan_project_roles (default roles/viewer, roles/iam.securityReviewer); reads only the plan key",
+      "check": "check_project_roles (default roles/viewer, roles/iam.securityReviewer); reads nothing",
+      "promote": "its own provider (github-promoter, audience acse-promote-gcp) in the same pool; acse-promote.yml on the outbox's default branch (sub and job_workflow_ref); reads exactly the promoter key; no project role"
+    },
+    "outputs": "modules/gcp-setup-credential: workload_identity_provider, promoter_workload_identity_provider, promoter_key_secret_name (projects/<project>/secrets/<name>), promoter_audience",
+    "promoter_key": "in SaaS mode the promoter key is in this project and never in InitValue's namespace (SA-6 as amended); promoter template 1.1.0 (core) reads it through WIF"
+  },
   "promoter_role": {
     "sub_repo_segment": "outbox_oidc_subject_repo: owner/name or owner@id/name@id (immutable format)",
     "when": "repositories.outbox is set and manage_promoter_role is true",
@@ -321,6 +333,8 @@
         "evidence_public_key_parameter_name": "/acse/acme/evidence/public-key",
         "parameter_arn_prefix": "arn:aws:ssm:us-east-1:111122223333:parameter/acse/acme",
         "promoter": null,
+        "promoter_oidc": null,
+        "gcp_setup_project": null,
         "setup_oidc_subjects": null,
         "setup_roles": null,
         "saas": null,
@@ -402,6 +416,8 @@
         "evidence_public_key_parameter_name": "/acse/bigco/evidence/public-key",
         "parameter_arn_prefix": "arn:aws:ssm:ca-central-1:777788889999:parameter/acse/bigco",
         "promoter": null,
+        "promoter_oidc": null,
+        "gcp_setup_project": null,
         "setup_oidc_subjects": null,
         "setup_roles": null,
         "saas": null,
@@ -547,6 +563,13 @@
             "secret": "acse/tenant-01/outbox/promoter/private-key"
           }
         },
+        "promoter_oidc": {
+          "repository": "example-org/acse-outbox",
+          "subject": "repo:example-org/acse-outbox:ref:refs/heads/main",
+          "job_workflow_ref": "example-org/acse-outbox/.github/workflows/acse-promote.yml@refs/heads/main",
+          "key_in_gcp": false
+        },
+        "gcp_setup_project": null,
         "setup_oidc_subjects": {
           "apply": "repo:example-org/acse-setup:environment:acse-setup-apply:job_workflow_ref:example-org/acse-setup/.github/workflows/acse-setup-apply.yml@refs/heads/main",
           "check": "repo:example-org/acse-setup:pull_request:job_workflow_ref:example-org/acse-setup/.github/workflows/acse-setup-apply.yml@refs/pull/*/merge",
@@ -831,6 +854,13 @@
             "secret": "acse/globex-eu/outbox/promoter/private-key"
           }
         },
+        "promoter_oidc": {
+          "repository": "globex/platform-acse-outbox",
+          "subject": "repo:globex@9000001/platform-acse-outbox@9000003:ref:refs/heads/trunk:job_workflow_ref:globex/platform-acse-outbox/.github/workflows/acse-promote.yml@refs/heads/trunk",
+          "job_workflow_ref": "globex/platform-acse-outbox/.github/workflows/acse-promote.yml@refs/heads/trunk",
+          "key_in_gcp": false
+        },
+        "gcp_setup_project": null,
         "setup_oidc_subjects": {
           "apply": "repo:globex@9000001/platform-acse-setup@9000002:environment:acse-setup-apply:job_workflow_ref:globex/platform-acse-setup/.github/workflows/acse-setup-apply.yml@refs/heads/trunk",
           "check": "repo:globex@9000001/platform-acse-setup@9000002:pull_request:job_workflow_ref:globex/platform-acse-setup/.github/workflows/acse-setup-apply.yml@refs/pull/*/merge",
@@ -996,7 +1026,8 @@
         },
         "saas_publish_role_arn": "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas",
         "saas_publish_on_apply": true,
-        "saas_app_keys_version": "2026-11-07"
+        "saas_app_keys_version": "2026-11-07",
+        "gcp_setup_project": "example-acse-setup"
       },
       "expected": {
         "tenant_yaml_sha256": "sha256:254dfaf5de5ce65a90381ac946cd7660cbf5493ebec61ebd62f924a2c7ebbcdd",
@@ -1039,6 +1070,8 @@
         "evidence_public_key_parameter_name": "/acse/example-saas/evidence/public-key",
         "parameter_arn_prefix": "arn:aws:ssm:ca-central-1:111122223333:parameter/acse/example-saas",
         "promoter": null,
+        "promoter_oidc": null,
+        "gcp_setup_project": "example-acse-setup",
         "setup_oidc_subjects": {
           "apply": "repo:example-org/acse-setup:environment:acse-setup-apply:job_workflow_ref:example-org/acse-setup/.github/workflows/acse-setup-apply.yml@refs/heads/main",
           "check": "repo:example-org/acse-setup:pull_request:job_workflow_ref:example-org/acse-setup/.github/workflows/acse-setup-apply.yml@refs/pull/*/merge",
@@ -1117,6 +1150,207 @@
             "schema": "gate-config-1.0",
             "content": "{\n  \"gate_config_format_version\": \"1.0\",\n  \"tenant\": \"example-saas\",\n  \"audience\": \"acse-gate:gta-5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a\",\n  \"report_url\": \"https://acse.example.com/api/gate/v1/reports\",\n  \"generated_from\": {\n    \"repository\": \"example-org/acse-setup\",\n    \"commit\": \"5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de\",\n    \"tenant_yaml_sha256\": \"sha256:254dfaf5de5ce65a90381ac946cd7660cbf5493ebec61ebd62f924a2c7ebbcdd\"\n  }\n}\n",
             "pull_request_branch": "setup-apply/acse-gate-config-bf002983e00b"
+          }
+        }
+      }
+    },
+    {
+      "name": "saas-gcp-setup-outbox",
+      "why": "SaaS Outbox tenant with a dedicated GCP setup project (Koushik, 2026-11-07): the promoter's App key lives in that project, so the namespace has no outbox/promoter/private-key and the promoter's AWS read policy (rendered for InitValue's pipeline) grants the three parameters only; promoter_oidc carries what the promoter's WIF provider binds.",
+      "tenant_yaml_path": "vectors/cases/saas-gcp-setup-outbox/tenant.yaml",
+      "tenant_yaml": "# Synthetic values. A SaaS Outbox tenant whose setup credential is in a dedicated GCP project (spec 02e Amendment 6;\n# Koushik, 2026-11-07): the promoter's App key lives in that project, not in InitValue's namespace. cloud.* names\n# InitValue's runtime account and region.\nversion: \"1.2\"\ntenant: example-saas-outbox\ncloud:\n  provider: aws\n  account: \"111122223333\"\n  region: ca-central-1\n  namespace: acse/example-saas-outbox\n  workflow_role: arn:aws:iam::111122223333:role/acse-promoter-example-saas-outbox\nrepositories:\n  setup: example-org/acse-setup\n  policies: example-org/acse-policies\n  outbox: example-org/acse-outbox\ngithub:\n  read_app_id: 5200001\n  change_app_id: 5200002\n  change_authorized_scope: org-wide\noutbox:\n  promoter_app_id: 5200003\n  report_url: \"https://acse.example.com/api/promoter/v1/reports\"\n  report_audience: \"acse-promoter:prg-5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b\"\n  runtime_pubkey_fingerprint: \"sha256:5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c\"\n",
+      "module_inputs": {
+        "setup_commit": "5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de",
+        "outbox_default_branch": "main",
+        "policies_default_branch": "main",
+        "outbox_oidc_subject_includes_job_workflow_ref": false,
+        "kms_key_arn": null,
+        "setup_credential_secret_arn": null,
+        "setup_credential_store": "gcp",
+        "setup_default_branch": "main",
+        "setup_oidc_subject_repo": null,
+        "outbox_oidc_subject_repo": null,
+        "setup_apply_environment_reviewers": {
+          "users": [],
+          "teams": [
+            1234567
+          ]
+        },
+        "saas_publish_role_arn": "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas-outbox",
+        "saas_publish_on_apply": true,
+        "saas_app_keys_version": null,
+        "gcp_setup_project": "example-acse-setup"
+      },
+      "expected": {
+        "tenant_yaml_sha256": "sha256:8c1a49cdb1348ce041a55dcaa83468111b1f0ae0e2f6fec4a62e0d54264cfa4a",
+        "namespace": "acse/example-saas-outbox",
+        "boundary": "acse",
+        "branch_ruleset_exclude": "refs/heads/acse/**",
+        "force_push_ruleset_include": [
+          "refs/heads/acse/**"
+        ],
+        "secret_names": {
+          "evidence/seal-key/current": "acse/example-saas-outbox/evidence/seal-key/current",
+          "evidence/seal-key/next": "acse/example-saas-outbox/evidence/seal-key/next",
+          "github/change/private-key": "acse/example-saas-outbox/github/change/private-key",
+          "github/read/private-key": "acse/example-saas-outbox/github/read/private-key",
+          "tfc/token": "acse/example-saas-outbox/tfc/token"
+        },
+        "settings_parameter_names": {
+          "cloud": "/acse/example-saas-outbox/settings/cloud",
+          "github": "/acse/example-saas-outbox/settings/github",
+          "naming": "/acse/example-saas-outbox/settings/naming",
+          "outbox": "/acse/example-saas-outbox/settings/outbox",
+          "repositories": "/acse/example-saas-outbox/settings/repositories"
+        },
+        "settings_payloads": {
+          "cloud": "{\"account\":\"111122223333\",\"namespace\":\"acse/example-saas-outbox\",\"provider\":\"aws\",\"region\":\"ca-central-1\",\"workflow_role\":\"arn:aws:iam::111122223333:role/acse-promoter-example-saas-outbox\"}",
+          "github": "{\"change_app_id\":5200002,\"change_authorized_scope\":\"org-wide\",\"read_app_id\":5200001}",
+          "naming": "{}",
+          "outbox": "{\"promoter_app_id\":5200003,\"report_audience\":\"acse-promoter:prg-5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b\",\"report_url\":\"https://acse.example.com/api/promoter/v1/reports\",\"runtime_pubkey_fingerprint\":\"sha256:5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c\"}",
+          "repositories": "{\"outbox\":\"example-org/acse-outbox\",\"policies\":\"example-org/acse-policies\",\"setup\":\"example-org/acse-setup\"}"
+        },
+        "settings_index_values": {
+          "cloud": "{\"bytes\":189,\"commit\":\"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\"inline\":{\"account\":\"111122223333\",\"namespace\":\"acse/example-saas-outbox\",\"provider\":\"aws\",\"region\":\"ca-central-1\",\"workflow_role\":\"arn:aws:iam::111122223333:role/acse-promoter-example-saas-outbox\"},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"cloud\",\"sha256\":\"sha256:d6557ff51bf8265545c55ad550b7d309279ba2212debfabbbf8e01ab52265b27\"}",
+          "github": "{\"bytes\":84,\"commit\":\"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\"inline\":{\"change_app_id\":5200002,\"change_authorized_scope\":\"org-wide\",\"read_app_id\":5200001},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"github\",\"sha256\":\"sha256:8c8bc55d69ad5bb8ad809bbedaea96f890c27598d7a0b3b5c1548cccdb4ed751\"}",
+          "naming": "{\"bytes\":2,\"commit\":\"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\"inline\":{},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"naming\",\"sha256\":\"sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\"}",
+          "outbox": "{\"bytes\":265,\"commit\":\"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\"inline\":{\"promoter_app_id\":5200003,\"report_audience\":\"acse-promoter:prg-5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b\",\"report_url\":\"https://acse.example.com/api/promoter/v1/reports\",\"runtime_pubkey_fingerprint\":\"sha256:5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c\"},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"outbox\",\"sha256\":\"sha256:b147662392767322edbdd2fdc3a7da6a415990d08faf10f205fac4691e1f01f7\"}",
+          "repositories": "{\"bytes\":108,\"commit\":\"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\"inline\":{\"outbox\":\"example-org/acse-outbox\",\"policies\":\"example-org/acse-policies\",\"setup\":\"example-org/acse-setup\"},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"repositories\",\"sha256\":\"sha256:06c27804cefabc7321ecb38201d185683d34e28187b6bd8c2384367811139e9e\"}"
+        },
+        "settings_part_names": {},
+        "settings_part_values": {},
+        "evidence_public_key_parameter_name": "/acse/example-saas-outbox/evidence/public-key",
+        "parameter_arn_prefix": "arn:aws:ssm:ca-central-1:111122223333:parameter/acse/example-saas-outbox",
+        "promoter": {
+          "role_arn": "arn:aws:iam::111122223333:role/acse-promoter-example-saas-outbox",
+          "role_name": "acse-promoter-example-saas-outbox",
+          "role_path": "/",
+          "trust_subject": "repo:example-org/acse-outbox:ref:refs/heads/main",
+          "trust_policy": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AcsePromoteOnTheOutboxDefaultBranchOnly",
+                "Effect": "Allow",
+                "Principal": {
+                  "Federated": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com"
+                },
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                  "StringEquals": {
+                    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                    "token.actions.githubusercontent.com:sub": "repo:example-org/acse-outbox:ref:refs/heads/main"
+                  }
+                }
+              }
+            ]
+          },
+          "read_policy_statements": [
+            {
+              "Action": "ssm:GetParameters",
+              "Effect": "Allow",
+              "Sid": "ReadThePromotersThreeParameters",
+              "Resource": [
+                "arn:aws:ssm:ca-central-1:111122223333:parameter/acse/example-saas-outbox/settings/outbox",
+                "arn:aws:ssm:ca-central-1:111122223333:parameter/acse/example-saas-outbox/settings/naming",
+                "arn:aws:ssm:ca-central-1:111122223333:parameter/acse/example-saas-outbox/evidence/public-key"
+              ]
+            }
+          ],
+          "store_reads": {
+            "parameters": [
+              "/acse/example-saas-outbox/settings/outbox",
+              "/acse/example-saas-outbox/settings/naming",
+              "/acse/example-saas-outbox/evidence/public-key"
+            ],
+            "secret": null
+          }
+        },
+        "promoter_oidc": {
+          "repository": "example-org/acse-outbox",
+          "subject": "repo:example-org/acse-outbox:ref:refs/heads/main",
+          "job_workflow_ref": "example-org/acse-outbox/.github/workflows/acse-promote.yml@refs/heads/main",
+          "key_in_gcp": true
+        },
+        "gcp_setup_project": "example-acse-setup",
+        "setup_oidc_subjects": {
+          "apply": "repo:example-org/acse-setup:environment:acse-setup-apply:job_workflow_ref:example-org/acse-setup/.github/workflows/acse-setup-apply.yml@refs/heads/main",
+          "check": "repo:example-org/acse-setup:pull_request:job_workflow_ref:example-org/acse-setup/.github/workflows/acse-setup-apply.yml@refs/pull/*/merge",
+          "plan": "repo:example-org/acse-setup:ref:refs/heads/main:job_workflow_ref:example-org/acse-setup/.github/workflows/acse-setup-apply.yml@refs/heads/main"
+        },
+        "setup_roles": null,
+        "saas": {
+          "publish_role_arn": "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas-outbox",
+          "publish_on_apply": true,
+          "publish_trust_subject": "repo:example-org/acse-setup:environment:acse-setup-apply:job_workflow_ref:example-org/acse-setup/.github/workflows/acse-setup-apply.yml@refs/heads/main",
+          "publish_trust_policy": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AcseSetupApplyJobOnly",
+                "Effect": "Allow",
+                "Principal": {
+                  "Federated": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com"
+                },
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                  "StringEquals": {
+                    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                    "token.actions.githubusercontent.com:sub": "repo:example-org/acse-setup:environment:acse-setup-apply:job_workflow_ref:example-org/acse-setup/.github/workflows/acse-setup-apply.yml@refs/heads/main"
+                  }
+                }
+              }
+            ]
+          },
+          "publish_policy": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "WriteThisTenantsSettingsOnly",
+                "Effect": "Allow",
+                "Action": [
+                  "ssm:PutParameter",
+                  "ssm:DeleteParameter"
+                ],
+                "Resource": "arn:aws:ssm:ca-central-1:111122223333:parameter/acse/example-saas-outbox/settings/*"
+              },
+              {
+                "Sid": "PutThisTenantsAppKeysOnly",
+                "Effect": "Allow",
+                "Action": "secretsmanager:PutSecretValue",
+                "Resource": [
+                  "arn:aws:secretsmanager:ca-central-1:111122223333:secret:acse/example-saas-outbox/github/read/private-key-??????",
+                  "arn:aws:secretsmanager:ca-central-1:111122223333:secret:acse/example-saas-outbox/github/change/private-key-??????"
+                ]
+              }
+            ]
+          },
+          "published_parameters": {
+            "cloud": "/acse/example-saas-outbox/settings/cloud",
+            "github": "/acse/example-saas-outbox/settings/github",
+            "naming": "/acse/example-saas-outbox/settings/naming",
+            "outbox": "/acse/example-saas-outbox/settings/outbox",
+            "repositories": "/acse/example-saas-outbox/settings/repositories"
+          },
+          "app_key_secret_names": {
+            "change": "acse/example-saas-outbox/github/change/private-key",
+            "read": "acse/example-saas-outbox/github/read/private-key"
+          },
+          "app_keys_version": null,
+          "skipped": [
+            "namespace",
+            "github_oidc_provider",
+            "promoter_role"
+          ]
+        },
+        "generated_files": {
+          "promoter": {
+            "repository": "example-org/acse-outbox",
+            "branch": "main",
+            "path": ".github/acse-promote.json",
+            "schema": "promoter-config-1.0",
+            "content": "{\n  \"promoter_config_format_version\": \"1.0\",\n  \"tenant\": \"example-saas-outbox\",\n  \"cloud\": {\n    \"provider\": \"aws\",\n    \"region\": \"ca-central-1\",\n    \"workflow_role\": \"arn:aws:iam::111122223333:role/acse-promoter-example-saas-outbox\",\n    \"namespace\": \"acse/example-saas-outbox\"\n  },\n  \"generated_from\": {\n    \"repository\": \"example-org/acse-setup\",\n    \"commit\": \"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\n    \"tenant_yaml_sha256\": \"sha256:8c1a49cdb1348ce041a55dcaa83468111b1f0ae0e2f6fec4a62e0d54264cfa4a\"\n  }\n}\n",
+            "pull_request_branch": "setup-apply/acse-promote-config-7a33bb27a645"
           }
         }
       }

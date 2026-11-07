@@ -48,15 +48,16 @@ locals {
           Action   = "ssm:GetParameters"
           Resource = local.promoter_parameter_arns
         },
-        {
-          Sid    = "ReadThePromotersAppKey"
-          Effect = "Allow"
-          Action = "secretsmanager:GetSecretValue"
-          # SaaS mode (SA-6): InitValue's pipeline creates the secret and the role, so name the secret by its ARN pattern.
-          Resource = local.saas ? "arn:aws:secretsmanager:${local.region}:${local.account}:secret:${local.namespace}/outbox/promoter/private-key-??????" : try(aws_secretsmanager_secret.namespace["outbox/promoter/private-key"].arn, null)
-        },
       ],
-      var.kms_key_arn == null ? [] : [{
+      # SaaS with a GCP setup project: the promoter's key is in that project, not in the namespace, so no secret grant.
+      local.promoter_key_in_gcp ? [] : [{
+        Sid    = "ReadThePromotersAppKey"
+        Effect = "Allow"
+        Action = "secretsmanager:GetSecretValue"
+        # SaaS mode (SA-6): InitValue's pipeline creates the secret and the role, so name the secret by its ARN pattern.
+        Resource = local.saas ? "arn:aws:secretsmanager:${local.region}:${local.account}:secret:${local.namespace}/outbox/promoter/private-key-??????" : try(aws_secretsmanager_secret.namespace["outbox/promoter/private-key"].arn, null)
+      }],
+      var.kms_key_arn == null || local.promoter_key_in_gcp ? [] : [{
         Sid       = "DecryptThePromotersAppKeyThroughSecretsManagerOnly"
         Effect    = "Allow"
         Action    = "kms:Decrypt"

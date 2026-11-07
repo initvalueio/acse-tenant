@@ -2,6 +2,7 @@
 # no network call to either. Each run has its own state (state_key), since the runs describe different tenants.
 # Cases in the vectors file are sorted by name:
 #   cases[0] direct-minimal   cases[2] outbox-and-gate   cases[3] outbox-prefixed-boundary   cases[4] saas-gcp-setup
+#   cases[5] saas-gcp-setup-outbox
 #
 # SaaS-mode runs are plan only: their publish step is a provisioner that runs on apply, and it must never run here.
 
@@ -746,6 +747,7 @@ run "saas_with_a_gcp_setup_credential" {
     setup_commit                      = "5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de"
     policies_default_branch           = "main"
     setup_credential_store            = "gcp"
+    gcp_setup_project                 = "example-acse-setup"
     setup_default_branch              = "main"
     setup_apply_environment_reviewers = { users = [], teams = [1234567] }
     saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas"
@@ -874,6 +876,7 @@ run "saas_large_sections_publish_their_parts" {
     setup_commit                      = "fedcba9876543210fedcba9876543210fedcba98"
     policies_default_branch           = "main"
     setup_credential_store            = "gcp"
+    gcp_setup_project                 = "example-acse-setup"
     setup_default_branch              = "main"
     setup_apply_environment_reviewers = { users = [1], teams = [] }
     saas_publish_role_arn             = "arn:aws:iam::777788889999:role/acse-saas-publish"
@@ -898,6 +901,7 @@ run "saas_bootstrap_publishes_nothing" {
     setup_commit                      = "5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de"
     policies_default_branch           = "main"
     setup_credential_store            = "gcp"
+    gcp_setup_project                 = "example-acse-setup"
     setup_default_branch              = "main"
     setup_apply_environment_reviewers = { users = [1], teams = [] }
     saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas"
@@ -919,6 +923,7 @@ run "refuses_a_saas_role_outside_the_runtime_account" {
     tenant_yaml                       = file("vectors/cases/saas-gcp-setup/tenant.yaml")
     setup_commit                      = "5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de"
     setup_credential_store            = "gcp"
+    gcp_setup_project                 = "example-acse-setup"
     setup_default_branch              = "main"
     setup_apply_environment_reviewers = { users = [1], teams = [] }
     saas_publish_role_arn             = "arn:aws:iam::999999999999:role/acse-saas-publish-example-saas"
@@ -970,6 +975,7 @@ run "refuses_saas_creating_an_oidc_provider" {
     tenant_yaml                       = file("vectors/cases/saas-gcp-setup/tenant.yaml")
     setup_commit                      = "5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de"
     setup_credential_store            = "gcp"
+    gcp_setup_project                 = "example-acse-setup"
     setup_default_branch              = "main"
     setup_apply_environment_reviewers = { users = [1], teams = [] }
     saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas"
@@ -1009,6 +1015,7 @@ run "refuses_aws_secret_arns_with_a_gcp_store" {
     tenant_yaml                       = file("vectors/cases/direct-minimal/tenant.yaml")
     setup_commit                      = "0123456789abcdef0123456789abcdef01234567"
     setup_credential_store            = "gcp"
+    gcp_setup_project                 = "example-acse-setup"
     setup_default_branch              = "main"
     setup_credential_secret_arn       = "arn:aws:secretsmanager:us-east-1:111122223333:secret:platform/setup-app-AbCdEf"
     setup_plan_credential_secret_arn  = "arn:aws:secretsmanager:us-east-1:111122223333:secret:platform/setup-plan-app-AbCdEf"
@@ -1022,6 +1029,56 @@ run "refuses_aws_secret_arns_with_a_gcp_store" {
   override_data {
     target = data.aws_region.current
     values = { region = "us-east-1" }
+  }
+
+  expect_failures = [terraform_data.tenant_config]
+}
+
+run "saas_gcp_outbox_keeps_the_promoter_key_in_the_setup_project" {
+  command   = plan
+  state_key = "saas_gcp_outbox_keeps_the_promoter_key_in_the_setup_project" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = file("vectors/cases/saas-gcp-setup-outbox/tenant.yaml")
+    setup_commit                      = "5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de"
+    policies_default_branch           = "main"
+    outbox_default_branch             = "main"
+    setup_credential_store            = "gcp"
+    gcp_setup_project                 = "example-acse-setup"
+    setup_default_branch              = "main"
+    setup_apply_environment_reviewers = { users = [], teams = [1234567] }
+    saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas-outbox"
+  }
+
+  assert {
+    condition     = jsonencode(output.secret_names) == jsonencode(jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[5].expected.secret_names) && !contains(keys(output.secret_names), "outbox/promoter/private-key")
+    error_message = "SaaS with a GCP setup project: the promoter key is not in InitValue's namespace (Koushik, 2026-11-07)."
+  }
+  assert {
+    condition     = jsonencode(jsondecode(output.promoter_read_policy).Statement) == jsonencode(jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[5].expected.promoter.read_policy_statements) && length(jsondecode(output.promoter_read_policy).Statement) == 1
+    error_message = "The promoter's AWS role (InitValue's pipeline) reads the three parameters and no secret."
+  }
+  assert {
+    condition     = output.promoter_store_reads.secret == null && jsonencode(output.promoter_oidc) == jsonencode(jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[5].expected.promoter_oidc) && output.promoter_oidc.key_in_gcp
+    error_message = "promoter_oidc gives modules/gcp-setup-credential what to bind, with key_in_gcp true."
+  }
+  assert {
+    condition     = output.gcp_setup_project == "example-acse-setup" && length(aws_iam_role.promoter) == 0
+    error_message = "The dedicated project is echoed; the promoter role is still InitValue's (SA-6)."
+  }
+}
+
+run "refuses_a_gcp_store_without_a_dedicated_project" {
+  command   = plan
+  state_key = "refuses_a_gcp_store_without_a_dedicated_project" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = file("vectors/cases/saas-gcp-setup/tenant.yaml")
+    setup_commit                      = "5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de"
+    setup_credential_store            = "gcp"
+    setup_default_branch              = "main"
+    setup_apply_environment_reviewers = { users = [1], teams = [] }
+    saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas"
   }
 
   expect_failures = [terraform_data.tenant_config]
