@@ -85,6 +85,6 @@ check "outbox_oidc_subject_repo_matches_github" {
       || try(jsondecode(data.github_rest_api.outbox_sub.body).sub_claim_prefix, null) == null
       || try(jsondecode(data.github_rest_api.outbox_sub.body).sub_claim_prefix, "") == "repo:${local.outbox_sub_repo}"
     )
-    error_message = "GitHub reports the outbox repository's OIDC sub prefix as ${try(jsondecode(data.github_rest_api.outbox_sub.body).sub_claim_prefix, "?")}, but the promoter role trusts repo:${coalesce(local.outbox_sub_repo, "")}. Set outbox_oidc_subject_repo to match, or the promoter cannot assume its role."
+    error_message = "GitHub reports the outbox repository's OIDC sub prefix as ${try(jsondecode(data.github_rest_api.outbox_sub.body).sub_claim_prefix, "?")}, but the promoter role trusts repo:${local.outbox_sub_repo == null ? "" : local.outbox_sub_repo}. Set outbox_oidc_subject_repo to match, or the promoter cannot assume its role."
   }
 }
