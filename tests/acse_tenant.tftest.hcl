@@ -813,8 +813,8 @@ run "saas_with_a_gcp_setup_credential" {
     error_message = "With saas_app_keys_version set, the App keys are put once per version."
   }
   assert {
-    condition     = output.generated_files["gate"].content == jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[4].expected.generated_files.gate.content && github_organization_ruleset.branches.name == "acse-change-only-on-acse-branches" && github_organization_ruleset.tags.name == "acse-change-no-tags"
-    error_message = "SaaS mode still generates the files and the rulesets."
+    condition     = output.generated_files["gate"].path == ".github/acse-gate.json" && output.generated_files["gate"].schema == "gate-config-1.0" && output.generated_files["gate"].repository == "example-org/acse-policies" && github_organization_ruleset.branches.name == "acse-change-only-on-acse-branches" && github_organization_ruleset.tags.name == "acse-change-no-tags"
+    error_message = "SaaS mode still generates the files and the rulesets (the file's bytes need generated_from, known only on apply; the apply runs above cover them)."
   }
 }
 
