@@ -1,0 +1,1526 @@
+# Synthetic values. A Direct tenant whose gate list (500 entries, tenant-config-1.2's maximum) and delivery
+# overrides (300) are too large to go inline: settings/gate and settings/delivery split into parts (DEC-6).
+tenant: bigco
+cloud:
+  provider: aws
+  account: "777788889999"
+  region: ca-central-1
+  namespace: acse/bigco
+  workflow_role: arn:aws:iam::777788889999:role/acse-promoter
+repositories:
+  setup: bigco/acse-setup
+  policies: bigco/acse-policies
+github:
+  read_app_id: 4100001
+  change_app_id: 4100002
+  change_authorized_scope: org-wide
+delivery:
+  methods: [direct_pr]
+  default_channel: patch_only
+  default_write_policy: on_request
+  repositories:
+    - repo: bigco/service-0000-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0001-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0002-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0003-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0004-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0005-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0006-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0007-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0008-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0009-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0010-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0011-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0012-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0013-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0014-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0015-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0016-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0017-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0018-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0019-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0020-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0021-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0022-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0023-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0024-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0025-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0026-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0027-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0028-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0029-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0030-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0031-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0032-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0033-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0034-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0035-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0036-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0037-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0038-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0039-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0040-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0041-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0042-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0043-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0044-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0045-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0046-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0047-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0048-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0049-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0050-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0051-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0052-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0053-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0054-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0055-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0056-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0057-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0058-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0059-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0060-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0061-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0062-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0063-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0064-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0065-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0066-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0067-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0068-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0069-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0070-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0071-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0072-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0073-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0074-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0075-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0076-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0077-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0078-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0079-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0080-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0081-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0082-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0083-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0084-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0085-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0086-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0087-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0088-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0089-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0090-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0091-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0092-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0093-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0094-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0095-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0096-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0097-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0098-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0099-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0100-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0101-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0102-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0103-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0104-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0105-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0106-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0107-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0108-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0109-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0110-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0111-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0112-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0113-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0114-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0115-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0116-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0117-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0118-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0119-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0120-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0121-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0122-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0123-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0124-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0125-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0126-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0127-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0128-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0129-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0130-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0131-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0132-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0133-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0134-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0135-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0136-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0137-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0138-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0139-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0140-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0141-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0142-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0143-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0144-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0145-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0146-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0147-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0148-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0149-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0150-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0151-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0152-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0153-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0154-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0155-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0156-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0157-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0158-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0159-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0160-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0161-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0162-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0163-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0164-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0165-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0166-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0167-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0168-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0169-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0170-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0171-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0172-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0173-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0174-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0175-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0176-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0177-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0178-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0179-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0180-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0181-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0182-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0183-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0184-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0185-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0186-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0187-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0188-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0189-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0190-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0191-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0192-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0193-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0194-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0195-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0196-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0197-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0198-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0199-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0200-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0201-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0202-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0203-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0204-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0205-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0206-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0207-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0208-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0209-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0210-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0211-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0212-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0213-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0214-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0215-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0216-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0217-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0218-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0219-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0220-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0221-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0222-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0223-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0224-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0225-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0226-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0227-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0228-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0229-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0230-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0231-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0232-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0233-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0234-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0235-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0236-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0237-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0238-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0239-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0240-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0241-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0242-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0243-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0244-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0245-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0246-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0247-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0248-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0249-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0250-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0251-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0252-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0253-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0254-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0255-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0256-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0257-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0258-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0259-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0260-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0261-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0262-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0263-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0264-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0265-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0266-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0267-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0268-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0269-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0270-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0271-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0272-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0273-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0274-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0275-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0276-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0277-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0278-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0279-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0280-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0281-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0282-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0283-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0284-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0285-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0286-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0287-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0288-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0289-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0290-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0291-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0292-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0293-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0294-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0295-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0296-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0297-infra
+      channel: direct_pr
+      write_policy: everywhere
+    - repo: bigco/service-0298-infra
+      channel: direct_pr
+      write_policy: on_request
+    - repo: bigco/service-0299-infra
+      channel: direct_pr
+      write_policy: everywhere
+gate:
+  registered_repositories:
+    - repo: bigco/service-0000-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0001-infra
+    - repo: bigco/service-0002-infra
+    - repo: bigco/service-0003-infra
+    - repo: bigco/service-0004-infra
+    - repo: bigco/service-0005-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0006-infra
+    - repo: bigco/service-0007-infra
+    - repo: bigco/service-0008-infra
+    - repo: bigco/service-0009-infra
+    - repo: bigco/service-0010-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0011-infra
+    - repo: bigco/service-0012-infra
+    - repo: bigco/service-0013-infra
+    - repo: bigco/service-0014-infra
+    - repo: bigco/service-0015-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0016-infra
+    - repo: bigco/service-0017-infra
+    - repo: bigco/service-0018-infra
+    - repo: bigco/service-0019-infra
+    - repo: bigco/service-0020-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0021-infra
+    - repo: bigco/service-0022-infra
+    - repo: bigco/service-0023-infra
+    - repo: bigco/service-0024-infra
+    - repo: bigco/service-0025-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0026-infra
+    - repo: bigco/service-0027-infra
+    - repo: bigco/service-0028-infra
+    - repo: bigco/service-0029-infra
+    - repo: bigco/service-0030-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0031-infra
+    - repo: bigco/service-0032-infra
+    - repo: bigco/service-0033-infra
+    - repo: bigco/service-0034-infra
+    - repo: bigco/service-0035-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0036-infra
+    - repo: bigco/service-0037-infra
+    - repo: bigco/service-0038-infra
+    - repo: bigco/service-0039-infra
+    - repo: bigco/service-0040-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0041-infra
+    - repo: bigco/service-0042-infra
+    - repo: bigco/service-0043-infra
+    - repo: bigco/service-0044-infra
+    - repo: bigco/service-0045-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0046-infra
+    - repo: bigco/service-0047-infra
+    - repo: bigco/service-0048-infra
+    - repo: bigco/service-0049-infra
+    - repo: bigco/service-0050-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0051-infra
+    - repo: bigco/service-0052-infra
+    - repo: bigco/service-0053-infra
+    - repo: bigco/service-0054-infra
+    - repo: bigco/service-0055-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0056-infra
+    - repo: bigco/service-0057-infra
+    - repo: bigco/service-0058-infra
+    - repo: bigco/service-0059-infra
+    - repo: bigco/service-0060-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0061-infra
+    - repo: bigco/service-0062-infra
+    - repo: bigco/service-0063-infra
+    - repo: bigco/service-0064-infra
+    - repo: bigco/service-0065-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0066-infra
+    - repo: bigco/service-0067-infra
+    - repo: bigco/service-0068-infra
+    - repo: bigco/service-0069-infra
+    - repo: bigco/service-0070-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0071-infra
+    - repo: bigco/service-0072-infra
+    - repo: bigco/service-0073-infra
+    - repo: bigco/service-0074-infra
+    - repo: bigco/service-0075-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0076-infra
+    - repo: bigco/service-0077-infra
+    - repo: bigco/service-0078-infra
+    - repo: bigco/service-0079-infra
+    - repo: bigco/service-0080-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0081-infra
+    - repo: bigco/service-0082-infra
+    - repo: bigco/service-0083-infra
+    - repo: bigco/service-0084-infra
+    - repo: bigco/service-0085-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0086-infra
+    - repo: bigco/service-0087-infra
+    - repo: bigco/service-0088-infra
+    - repo: bigco/service-0089-infra
+    - repo: bigco/service-0090-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0091-infra
+    - repo: bigco/service-0092-infra
+    - repo: bigco/service-0093-infra
+    - repo: bigco/service-0094-infra
+    - repo: bigco/service-0095-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0096-infra
+    - repo: bigco/service-0097-infra
+    - repo: bigco/service-0098-infra
+    - repo: bigco/service-0099-infra
+    - repo: bigco/service-0100-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0101-infra
+    - repo: bigco/service-0102-infra
+    - repo: bigco/service-0103-infra
+    - repo: bigco/service-0104-infra
+    - repo: bigco/service-0105-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0106-infra
+    - repo: bigco/service-0107-infra
+    - repo: bigco/service-0108-infra
+    - repo: bigco/service-0109-infra
+    - repo: bigco/service-0110-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0111-infra
+    - repo: bigco/service-0112-infra
+    - repo: bigco/service-0113-infra
+    - repo: bigco/service-0114-infra
+    - repo: bigco/service-0115-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0116-infra
+    - repo: bigco/service-0117-infra
+    - repo: bigco/service-0118-infra
+    - repo: bigco/service-0119-infra
+    - repo: bigco/service-0120-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0121-infra
+    - repo: bigco/service-0122-infra
+    - repo: bigco/service-0123-infra
+    - repo: bigco/service-0124-infra
+    - repo: bigco/service-0125-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0126-infra
+    - repo: bigco/service-0127-infra
+    - repo: bigco/service-0128-infra
+    - repo: bigco/service-0129-infra
+    - repo: bigco/service-0130-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0131-infra
+    - repo: bigco/service-0132-infra
+    - repo: bigco/service-0133-infra
+    - repo: bigco/service-0134-infra
+    - repo: bigco/service-0135-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0136-infra
+    - repo: bigco/service-0137-infra
+    - repo: bigco/service-0138-infra
+    - repo: bigco/service-0139-infra
+    - repo: bigco/service-0140-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0141-infra
+    - repo: bigco/service-0142-infra
+    - repo: bigco/service-0143-infra
+    - repo: bigco/service-0144-infra
+    - repo: bigco/service-0145-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0146-infra
+    - repo: bigco/service-0147-infra
+    - repo: bigco/service-0148-infra
+    - repo: bigco/service-0149-infra
+    - repo: bigco/service-0150-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0151-infra
+    - repo: bigco/service-0152-infra
+    - repo: bigco/service-0153-infra
+    - repo: bigco/service-0154-infra
+    - repo: bigco/service-0155-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0156-infra
+    - repo: bigco/service-0157-infra
+    - repo: bigco/service-0158-infra
+    - repo: bigco/service-0159-infra
+    - repo: bigco/service-0160-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0161-infra
+    - repo: bigco/service-0162-infra
+    - repo: bigco/service-0163-infra
+    - repo: bigco/service-0164-infra
+    - repo: bigco/service-0165-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0166-infra
+    - repo: bigco/service-0167-infra
+    - repo: bigco/service-0168-infra
+    - repo: bigco/service-0169-infra
+    - repo: bigco/service-0170-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0171-infra
+    - repo: bigco/service-0172-infra
+    - repo: bigco/service-0173-infra
+    - repo: bigco/service-0174-infra
+    - repo: bigco/service-0175-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0176-infra
+    - repo: bigco/service-0177-infra
+    - repo: bigco/service-0178-infra
+    - repo: bigco/service-0179-infra
+    - repo: bigco/service-0180-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0181-infra
+    - repo: bigco/service-0182-infra
+    - repo: bigco/service-0183-infra
+    - repo: bigco/service-0184-infra
+    - repo: bigco/service-0185-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0186-infra
+    - repo: bigco/service-0187-infra
+    - repo: bigco/service-0188-infra
+    - repo: bigco/service-0189-infra
+    - repo: bigco/service-0190-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0191-infra
+    - repo: bigco/service-0192-infra
+    - repo: bigco/service-0193-infra
+    - repo: bigco/service-0194-infra
+    - repo: bigco/service-0195-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0196-infra
+    - repo: bigco/service-0197-infra
+    - repo: bigco/service-0198-infra
+    - repo: bigco/service-0199-infra
+    - repo: bigco/service-0200-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0201-infra
+    - repo: bigco/service-0202-infra
+    - repo: bigco/service-0203-infra
+    - repo: bigco/service-0204-infra
+    - repo: bigco/service-0205-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0206-infra
+    - repo: bigco/service-0207-infra
+    - repo: bigco/service-0208-infra
+    - repo: bigco/service-0209-infra
+    - repo: bigco/service-0210-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0211-infra
+    - repo: bigco/service-0212-infra
+    - repo: bigco/service-0213-infra
+    - repo: bigco/service-0214-infra
+    - repo: bigco/service-0215-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0216-infra
+    - repo: bigco/service-0217-infra
+    - repo: bigco/service-0218-infra
+    - repo: bigco/service-0219-infra
+    - repo: bigco/service-0220-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0221-infra
+    - repo: bigco/service-0222-infra
+    - repo: bigco/service-0223-infra
+    - repo: bigco/service-0224-infra
+    - repo: bigco/service-0225-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0226-infra
+    - repo: bigco/service-0227-infra
+    - repo: bigco/service-0228-infra
+    - repo: bigco/service-0229-infra
+    - repo: bigco/service-0230-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0231-infra
+    - repo: bigco/service-0232-infra
+    - repo: bigco/service-0233-infra
+    - repo: bigco/service-0234-infra
+    - repo: bigco/service-0235-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0236-infra
+    - repo: bigco/service-0237-infra
+    - repo: bigco/service-0238-infra
+    - repo: bigco/service-0239-infra
+    - repo: bigco/service-0240-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0241-infra
+    - repo: bigco/service-0242-infra
+    - repo: bigco/service-0243-infra
+    - repo: bigco/service-0244-infra
+    - repo: bigco/service-0245-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0246-infra
+    - repo: bigco/service-0247-infra
+    - repo: bigco/service-0248-infra
+    - repo: bigco/service-0249-infra
+    - repo: bigco/service-0250-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0251-infra
+    - repo: bigco/service-0252-infra
+    - repo: bigco/service-0253-infra
+    - repo: bigco/service-0254-infra
+    - repo: bigco/service-0255-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0256-infra
+    - repo: bigco/service-0257-infra
+    - repo: bigco/service-0258-infra
+    - repo: bigco/service-0259-infra
+    - repo: bigco/service-0260-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0261-infra
+    - repo: bigco/service-0262-infra
+    - repo: bigco/service-0263-infra
+    - repo: bigco/service-0264-infra
+    - repo: bigco/service-0265-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0266-infra
+    - repo: bigco/service-0267-infra
+    - repo: bigco/service-0268-infra
+    - repo: bigco/service-0269-infra
+    - repo: bigco/service-0270-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0271-infra
+    - repo: bigco/service-0272-infra
+    - repo: bigco/service-0273-infra
+    - repo: bigco/service-0274-infra
+    - repo: bigco/service-0275-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0276-infra
+    - repo: bigco/service-0277-infra
+    - repo: bigco/service-0278-infra
+    - repo: bigco/service-0279-infra
+    - repo: bigco/service-0280-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0281-infra
+    - repo: bigco/service-0282-infra
+    - repo: bigco/service-0283-infra
+    - repo: bigco/service-0284-infra
+    - repo: bigco/service-0285-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0286-infra
+    - repo: bigco/service-0287-infra
+    - repo: bigco/service-0288-infra
+    - repo: bigco/service-0289-infra
+    - repo: bigco/service-0290-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0291-infra
+    - repo: bigco/service-0292-infra
+    - repo: bigco/service-0293-infra
+    - repo: bigco/service-0294-infra
+    - repo: bigco/service-0295-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0296-infra
+    - repo: bigco/service-0297-infra
+    - repo: bigco/service-0298-infra
+    - repo: bigco/service-0299-infra
+    - repo: bigco/service-0300-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0301-infra
+    - repo: bigco/service-0302-infra
+    - repo: bigco/service-0303-infra
+    - repo: bigco/service-0304-infra
+    - repo: bigco/service-0305-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0306-infra
+    - repo: bigco/service-0307-infra
+    - repo: bigco/service-0308-infra
+    - repo: bigco/service-0309-infra
+    - repo: bigco/service-0310-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0311-infra
+    - repo: bigco/service-0312-infra
+    - repo: bigco/service-0313-infra
+    - repo: bigco/service-0314-infra
+    - repo: bigco/service-0315-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0316-infra
+    - repo: bigco/service-0317-infra
+    - repo: bigco/service-0318-infra
+    - repo: bigco/service-0319-infra
+    - repo: bigco/service-0320-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0321-infra
+    - repo: bigco/service-0322-infra
+    - repo: bigco/service-0323-infra
+    - repo: bigco/service-0324-infra
+    - repo: bigco/service-0325-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0326-infra
+    - repo: bigco/service-0327-infra
+    - repo: bigco/service-0328-infra
+    - repo: bigco/service-0329-infra
+    - repo: bigco/service-0330-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0331-infra
+    - repo: bigco/service-0332-infra
+    - repo: bigco/service-0333-infra
+    - repo: bigco/service-0334-infra
+    - repo: bigco/service-0335-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0336-infra
+    - repo: bigco/service-0337-infra
+    - repo: bigco/service-0338-infra
+    - repo: bigco/service-0339-infra
+    - repo: bigco/service-0340-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0341-infra
+    - repo: bigco/service-0342-infra
+    - repo: bigco/service-0343-infra
+    - repo: bigco/service-0344-infra
+    - repo: bigco/service-0345-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0346-infra
+    - repo: bigco/service-0347-infra
+    - repo: bigco/service-0348-infra
+    - repo: bigco/service-0349-infra
+    - repo: bigco/service-0350-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0351-infra
+    - repo: bigco/service-0352-infra
+    - repo: bigco/service-0353-infra
+    - repo: bigco/service-0354-infra
+    - repo: bigco/service-0355-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0356-infra
+    - repo: bigco/service-0357-infra
+    - repo: bigco/service-0358-infra
+    - repo: bigco/service-0359-infra
+    - repo: bigco/service-0360-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0361-infra
+    - repo: bigco/service-0362-infra
+    - repo: bigco/service-0363-infra
+    - repo: bigco/service-0364-infra
+    - repo: bigco/service-0365-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0366-infra
+    - repo: bigco/service-0367-infra
+    - repo: bigco/service-0368-infra
+    - repo: bigco/service-0369-infra
+    - repo: bigco/service-0370-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0371-infra
+    - repo: bigco/service-0372-infra
+    - repo: bigco/service-0373-infra
+    - repo: bigco/service-0374-infra
+    - repo: bigco/service-0375-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0376-infra
+    - repo: bigco/service-0377-infra
+    - repo: bigco/service-0378-infra
+    - repo: bigco/service-0379-infra
+    - repo: bigco/service-0380-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0381-infra
+    - repo: bigco/service-0382-infra
+    - repo: bigco/service-0383-infra
+    - repo: bigco/service-0384-infra
+    - repo: bigco/service-0385-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0386-infra
+    - repo: bigco/service-0387-infra
+    - repo: bigco/service-0388-infra
+    - repo: bigco/service-0389-infra
+    - repo: bigco/service-0390-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0391-infra
+    - repo: bigco/service-0392-infra
+    - repo: bigco/service-0393-infra
+    - repo: bigco/service-0394-infra
+    - repo: bigco/service-0395-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0396-infra
+    - repo: bigco/service-0397-infra
+    - repo: bigco/service-0398-infra
+    - repo: bigco/service-0399-infra
+    - repo: bigco/service-0400-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0401-infra
+    - repo: bigco/service-0402-infra
+    - repo: bigco/service-0403-infra
+    - repo: bigco/service-0404-infra
+    - repo: bigco/service-0405-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0406-infra
+    - repo: bigco/service-0407-infra
+    - repo: bigco/service-0408-infra
+    - repo: bigco/service-0409-infra
+    - repo: bigco/service-0410-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0411-infra
+    - repo: bigco/service-0412-infra
+    - repo: bigco/service-0413-infra
+    - repo: bigco/service-0414-infra
+    - repo: bigco/service-0415-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0416-infra
+    - repo: bigco/service-0417-infra
+    - repo: bigco/service-0418-infra
+    - repo: bigco/service-0419-infra
+    - repo: bigco/service-0420-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0421-infra
+    - repo: bigco/service-0422-infra
+    - repo: bigco/service-0423-infra
+    - repo: bigco/service-0424-infra
+    - repo: bigco/service-0425-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0426-infra
+    - repo: bigco/service-0427-infra
+    - repo: bigco/service-0428-infra
+    - repo: bigco/service-0429-infra
+    - repo: bigco/service-0430-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0431-infra
+    - repo: bigco/service-0432-infra
+    - repo: bigco/service-0433-infra
+    - repo: bigco/service-0434-infra
+    - repo: bigco/service-0435-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0436-infra
+    - repo: bigco/service-0437-infra
+    - repo: bigco/service-0438-infra
+    - repo: bigco/service-0439-infra
+    - repo: bigco/service-0440-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0441-infra
+    - repo: bigco/service-0442-infra
+    - repo: bigco/service-0443-infra
+    - repo: bigco/service-0444-infra
+    - repo: bigco/service-0445-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0446-infra
+    - repo: bigco/service-0447-infra
+    - repo: bigco/service-0448-infra
+    - repo: bigco/service-0449-infra
+    - repo: bigco/service-0450-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0451-infra
+    - repo: bigco/service-0452-infra
+    - repo: bigco/service-0453-infra
+    - repo: bigco/service-0454-infra
+    - repo: bigco/service-0455-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0456-infra
+    - repo: bigco/service-0457-infra
+    - repo: bigco/service-0458-infra
+    - repo: bigco/service-0459-infra
+    - repo: bigco/service-0460-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0461-infra
+    - repo: bigco/service-0462-infra
+    - repo: bigco/service-0463-infra
+    - repo: bigco/service-0464-infra
+    - repo: bigco/service-0465-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0466-infra
+    - repo: bigco/service-0467-infra
+    - repo: bigco/service-0468-infra
+    - repo: bigco/service-0469-infra
+    - repo: bigco/service-0470-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0471-infra
+    - repo: bigco/service-0472-infra
+    - repo: bigco/service-0473-infra
+    - repo: bigco/service-0474-infra
+    - repo: bigco/service-0475-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0476-infra
+    - repo: bigco/service-0477-infra
+    - repo: bigco/service-0478-infra
+    - repo: bigco/service-0479-infra
+    - repo: bigco/service-0480-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0481-infra
+    - repo: bigco/service-0482-infra
+    - repo: bigco/service-0483-infra
+    - repo: bigco/service-0484-infra
+    - repo: bigco/service-0485-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0486-infra
+    - repo: bigco/service-0487-infra
+    - repo: bigco/service-0488-infra
+    - repo: bigco/service-0489-infra
+    - repo: bigco/service-0490-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0491-infra
+    - repo: bigco/service-0492-infra
+    - repo: bigco/service-0493-infra
+    - repo: bigco/service-0494-infra
+    - repo: bigco/service-0495-infra
+      workflow: .github/workflows/plan.yml
+    - repo: bigco/service-0496-infra
+    - repo: bigco/service-0497-infra
+    - repo: bigco/service-0498-infra
+    - repo: bigco/service-0499-infra
+  enforcement: per_repo
+  audience: "acse-gate:gta-0a1b2c3d4e5f60718293a4b5c6d7e8f9"
+  report_url: "https://acse.example.com/api/gate/v1/reports"

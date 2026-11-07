@@ -1,0 +1,15 @@
+# Synthetic values. A Direct-only tenant: no outbox, no gate audience, no naming section (tenant-config-1.0).
+tenant: acme
+cloud:
+  provider: aws
+  account: "111122223333"
+  region: us-east-1
+  namespace: acse/acme
+  workflow_role: arn:aws:iam::111122223333:role/acse-promoter
+repositories:
+  setup: acme-corp/acse-setup
+  policies: acme-corp/acse-policies
+github:
+  read_app_id: 2000001
+  change_app_id: 2000002
+  change_authorized_scope: org-wide

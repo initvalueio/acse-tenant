@@ -1,0 +1,9 @@
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+tfplan
+__pycache__/
+*.pyc
+examples/setup-repository/terraform/terraform.tfvars
+examples/setup-repository/terraform/backend.*.hcl

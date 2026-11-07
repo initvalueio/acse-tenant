@@ -1,0 +1,11 @@
+# Copy to backend.apply.hcl. acse-setup-apply.yml passes it to terraform init in the apply job.
+bucket       = "example-terraform-state"
+key          = "acse-setup/terraform.tfstate"
+region       = "ca-central-1"
+encrypt      = true
+use_lockfile = true
+
+assume_role_with_web_identity = {
+  role_arn = "arn:aws:iam::111122223333:role/acse-setup-apply"
+  # web_identity_token_file: from AWS_WEB_IDENTITY_TOKEN_FILE (set by acse-setup-apply.yml).
+}

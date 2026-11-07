@@ -1,0 +1,11 @@
+# Copy to backend.check.hcl. acse-setup-apply.yml passes it to terraform init in the pull request's check job. The
+# plan role needs read on the state object and write on its lock file (use_lockfile) only.
+bucket       = "example-terraform-state"
+key          = "acse-setup/terraform.tfstate"
+region       = "ca-central-1"
+encrypt      = true
+use_lockfile = true
+
+assume_role_with_web_identity = {
+  role_arn = "arn:aws:iam::111122223333:role/acse-setup-check"
+}

@@ -1,0 +1,32 @@
+# Copy to terraform.tfvars and fill in. Nothing here is secret: the setup App's key stays in Secrets Manager, in a
+# secret you name outside acse/<tenant>/.
+setup_app = {
+  id                     = 1000002
+  installation_id        = 50000002
+  private_key_secret_arn = "arn:aws:secretsmanager:ca-central-1:111122223333:secret:platform/github/acse-setup-app/private-key-GhIjKl"
+}
+
+plan_app = {
+  id                     = 1000003
+  installation_id        = 50000003
+  private_key_secret_arn = "arn:aws:secretsmanager:ca-central-1:111122223333:secret:platform/github/acse-setup-plan-app/private-key-MnOpQr"
+}
+
+default_branches = {
+  setup    = "main"
+  policies = "main"
+  outbox   = "main"
+}
+
+# For repositories on GitHub's immutable subject format (created after 2026-07-15), from sub_claim_prefix:
+# oidc_subject_repo = { setup = "example-org@12345/acse-setup@67890", outbox = "example-org@12345/acse-outbox@67891" }
+
+bootstrap_admin_role_arns = ["arn:aws:iam::111122223333:role/platform-break-glass"]
+
+apply_environment_reviewers = {
+  users = []
+  teams = [1234567]
+}
+
+other_bot_app_ids   = []
+ruleset_enforcement = "evaluate"

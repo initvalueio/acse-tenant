@@ -1,0 +1,36 @@
+# Synthetic values. An Outbox-only tenant with a prefixed and suffixed boundary, a role under a path, a gate list
+# but no audience yet (so no .github/acse-gate.json), and a report audience holding characters jsonencode escapes.
+tenant: globex-eu
+cloud:
+  provider: aws
+  account: "444455556666"
+  region: eu-west-1
+  namespace: acse/globex-eu
+  workflow_role: arn:aws:iam::444455556666:role/acse/acse-promoter-globex
+repositories:
+  setup: globex/platform-acse-setup
+  policies: globex/platform-acse-policies
+  outbox: globex/platform-acse-outbox
+github:
+  read_app_id: 3100001
+  change_app_id: 3100002
+  change_authorized_scope: outbox-only
+naming:
+  prefix: "corp-"
+  suffix: "-prod"
+  missing_token_policy:
+    class: hold
+    incident: placeholder
+delivery:
+  methods: [outbox]
+  default_channel: outbox
+  default_write_policy: on_request
+gate:
+  registered_repositories:
+    - repo: globex/network
+outbox:
+  promoter_app_id: 3100003
+  report_url: "https://acse.example.com/api/promoter/v1/reports?tenant=globex&kind=heartbeat"
+  report_audience: "acse-promoter:prg-fedcba9876543210fedcba9876543210"
+  runtime_pubkey_fingerprint: "sha256:3434343434343434343434343434343434343434343434343434343434343434"
+  runtime_pubkey_next_fingerprint: "sha256:5656565656565656565656565656565656565656565656565656565656565656"
