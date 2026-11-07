@@ -32,7 +32,7 @@ locals {
   setup_full     = tostring(local.repositories.setup)
   setup_name     = split("/", local.repositories.setup)[1]
   setup_workflow = "${local.setup_full}/.github/workflows/acse-setup-apply.yml"
-  setup_default  = var.setup_default_branch
+  setup_default  = coalesce(var.setup_default_branch, "UNSET-setup_default_branch") # refused in validation.tf when unset
 
   # The repo segment of sub: owner/name, or owner@id/name@id under GitHub's immutable subject format (repositories
   # created after 2026-07-15 use it by default). DEC-29.

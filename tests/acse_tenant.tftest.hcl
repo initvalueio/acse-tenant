@@ -21,7 +21,8 @@ mock_provider "github" {
     defaults = {
       code   = 200
       status = "200 OK"
-      body   = "{\"total_count\":1,\"installations\":[{\"app_id\":1183420,\"repository_selection\":\"all\"}]}"
+      # ACSE Read's installation for every case's tenant (github.read_app_id), selection all: no GA-4 warning.
+      body = "{\"total_count\":4,\"installations\":[{\"app_id\":1183420,\"repository_selection\":\"all\"},{\"app_id\":3100001,\"repository_selection\":\"all\"},{\"app_id\":4100001,\"repository_selection\":\"all\"},{\"app_id\":2000001,\"repository_selection\":\"all\"}]}"
     }
   }
   mock_resource "github_organization_ruleset" {

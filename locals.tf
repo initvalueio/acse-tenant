@@ -131,7 +131,7 @@ locals {
   oidc_host         = "token.actions.githubusercontent.com"
   oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : "arn:aws:iam::${local.account}:oidc-provider/${local.oidc_host}"
 
-  outbox_default_branch = !local.has_outbox ? null : var.outbox_default_branch
+  outbox_default_branch = !local.has_outbox ? null : coalesce(var.outbox_default_branch, "UNSET-outbox_default_branch")
   outbox_sub_repo       = !local.has_outbox ? null : coalesce(var.outbox_oidc_subject_repo, local.outbox_full)
   promoter_workflow_ref = local.has_outbox ? "${local.outbox_full}/.github/workflows/acse-promote.yml@refs/heads/${local.outbox_default_branch}" : null
   promoter_subject = !local.has_outbox ? null : (
