@@ -1,5 +1,6 @@
 # The module against vectors/acse-tenant-vectors-1.0.json, with mock providers only: no AWS or GitHub credential and
-# no network call to either. Cases in the vectors file are sorted by name:
+# no network call to either. Each run has its own state (state_key), since the runs describe different tenants.
+# Cases in the vectors file are sorted by name:
 #   cases[0] direct-minimal   cases[2] outbox-and-gate   cases[3] outbox-prefixed-boundary
 
 mock_provider "aws" {
@@ -31,7 +32,8 @@ mock_provider "github" {
 }
 
 run "outbox_and_gate_pull_request_mode" {
-  command = apply
+  command   = apply
+  state_key = "outbox_and_gate_pull_request_mode" # each run starts from its own empty state
 
   variables {
     tenant_yaml                        = file("vectors/cases/outbox-and-gate/tenant.yaml")
@@ -235,7 +237,8 @@ run "outbox_and_gate_pull_request_mode" {
 }
 
 run "matching_default_branch_writes_nothing" {
-  command = apply
+  command   = apply
+  state_key = "matching_default_branch_writes_nothing" # each run starts from its own empty state
 
   variables {
     tenant_yaml             = file("vectors/cases/outbox-prefixed-boundary/tenant.yaml")
@@ -292,7 +295,8 @@ run "matching_default_branch_writes_nothing" {
 }
 
 run "outbox_prefixed_boundary_kms_and_job_workflow_ref" {
-  command = apply
+  command   = apply
+  state_key = "outbox_prefixed_boundary_kms_and_job_workflow_ref" # each run starts from its own empty state
 
   variables {
     tenant_yaml                                   = file("vectors/cases/outbox-prefixed-boundary/tenant.yaml")
@@ -396,7 +400,8 @@ run "outbox_prefixed_boundary_kms_and_job_workflow_ref" {
 }
 
 run "direct_minimal" {
-  command = apply
+  command   = apply
+  state_key = "direct_minimal" # each run starts from its own empty state
 
   variables {
     tenant_yaml             = file("vectors/cases/direct-minimal/tenant.yaml")
@@ -433,7 +438,8 @@ run "direct_minimal" {
 }
 
 run "direct_mode_commits_to_the_default_branch" {
-  command = apply
+  command   = apply
+  state_key = "direct_mode_commits_to_the_default_branch" # each run starts from its own empty state
 
   variables {
     tenant_yaml             = file("vectors/cases/outbox-and-gate/tenant.yaml")
@@ -471,7 +477,8 @@ run "direct_mode_commits_to_the_default_branch" {
 }
 
 run "large_sections_split_into_parts" {
-  command = apply
+  command   = apply
+  state_key = "large_sections_split_into_parts" # each run starts from its own empty state
 
   variables {
     tenant_yaml             = file("vectors/cases/large-split/tenant.yaml")
@@ -520,7 +527,8 @@ run "large_sections_split_into_parts" {
 }
 
 run "refuses_a_setup_credential_inside_the_namespace" {
-  command = plan
+  command   = plan
+  state_key = "refuses_a_setup_credential_inside_the_namespace" # each run starts from its own empty state
 
   variables {
     tenant_yaml                       = file("vectors/cases/direct-minimal/tenant.yaml")
@@ -544,7 +552,8 @@ run "refuses_a_setup_credential_inside_the_namespace" {
 }
 
 run "refuses_one_role_for_apply_and_check" {
-  command = plan
+  command   = plan
+  state_key = "refuses_one_role_for_apply_and_check" # each run starts from its own empty state
 
   variables {
     tenant_yaml                       = file("vectors/cases/direct-minimal/tenant.yaml")
@@ -569,7 +578,8 @@ run "refuses_one_role_for_apply_and_check" {
 }
 
 run "refuses_an_apply_environment_without_reviewers" {
-  command = plan
+  command   = plan
+  state_key = "refuses_an_apply_environment_without_reviewers" # each run starts from its own empty state
 
   variables {
     tenant_yaml                      = file("vectors/cases/direct-minimal/tenant.yaml")
@@ -592,7 +602,8 @@ run "refuses_an_apply_environment_without_reviewers" {
 }
 
 run "refuses_setup_without_the_read_only_app_key" {
-  command = plan
+  command   = plan
+  state_key = "refuses_setup_without_the_read_only_app_key" # each run starts from its own empty state
 
   variables {
     tenant_yaml                       = file("vectors/cases/direct-minimal/tenant.yaml")
@@ -615,7 +626,8 @@ run "refuses_setup_without_the_read_only_app_key" {
 }
 
 run "refuses_an_outbox_without_its_default_branch" {
-  command = plan
+  command   = plan
+  state_key = "refuses_an_outbox_without_its_default_branch" # each run starts from its own empty state
 
   variables {
     tenant_yaml             = file("vectors/cases/outbox-and-gate/tenant.yaml")
@@ -636,7 +648,8 @@ run "refuses_an_outbox_without_its_default_branch" {
 }
 
 run "refuses_a_namespace_that_is_not_the_tenants" {
-  command = plan
+  command   = plan
+  state_key = "refuses_a_namespace_that_is_not_the_tenants" # each run starts from its own empty state
 
   variables {
     tenant_yaml  = replace(file("vectors/cases/direct-minimal/tenant.yaml"), "namespace: acse/acme", "namespace: acse/other")
@@ -656,7 +669,8 @@ run "refuses_a_namespace_that_is_not_the_tenants" {
 }
 
 run "refuses_acse_change_on_the_bypass_list" {
-  command = plan
+  command   = plan
+  state_key = "refuses_acse_change_on_the_bypass_list" # each run starts from its own empty state
 
   variables {
     tenant_yaml                    = file("vectors/cases/direct-minimal/tenant.yaml")
@@ -677,7 +691,8 @@ run "refuses_acse_change_on_the_bypass_list" {
 }
 
 run "refuses_another_account" {
-  command = plan
+  command   = plan
+  state_key = "refuses_another_account" # each run starts from its own empty state
 
   variables {
     tenant_yaml  = file("vectors/cases/direct-minimal/tenant.yaml")
@@ -697,7 +712,8 @@ run "refuses_another_account" {
 }
 
 run "refuses_ruleset_enforcement" {
-  command = plan
+  command   = plan
+  state_key = "refuses_ruleset_enforcement" # each run starts from its own empty state
 
   variables {
     tenant_yaml  = "${file("vectors/cases/direct-minimal/tenant.yaml")}gate:\n  enforcement: ruleset\n  registered_repositories:\n    - repo: acme-corp/acse-policies\n      workflow: .github/workflows/acse-gate.yml\n"
