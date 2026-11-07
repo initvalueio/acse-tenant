@@ -91,9 +91,33 @@ output "promoter_store_reads" {
   } : null
 }
 
-output "setup_roles" {
-  description = "DEC-20: the setup apply role (the only reader of the setup credential), the post-merge plan role (the only reader of the read-only App's key) and the PR-check role, their trusted subjects and policies, and the environment; null when setup_credential_secret_arn is not set."
+output "setup_oidc_subjects" {
+  description = "SC-1: the exact OIDC sub of each acse-setup-apply.yml job under the setup repository's subject template. apply and plan are matched exactly; check is the pull request's subject, where * stands for the pull request number. modules/gcp-setup-credential binds these when setup_credential_store = gcp. Null when no setup credential is configured."
   value = local.setup_enabled ? {
+    apply = local.setup_apply_subject
+    plan  = local.setup_plan_subject
+    check = local.setup_check_subject
+  } : null
+}
+
+output "saas" {
+  description = "SaaS mode (spec 02e Amendment 6 section A), or null when self-hosted. publish_policy and publish_trust_policy are what InitValue's pipeline gives the per-tenant publish role (SA-1, SA-2); the module itself never creates it. skipped lists what this mode does not create."
+  value = local.saas ? {
+    publish_role_arn      = var.saas_publish_role_arn
+    publish_on_apply      = var.saas_publish_on_apply
+    publish_trust_subject = local.setup_apply_subject
+    publish_trust_policy  = local.saas_publish_trust_policy
+    publish_policy        = local.saas_publish_policy
+    published_parameters  = local.saas_slots
+    app_key_secret_names  = local.saas_app_key_secret_names
+    app_keys_version      = var.saas_app_keys_version
+    skipped               = ["namespace", "github_oidc_provider", "promoter_role"]
+  } : null
+}
+
+output "setup_roles" {
+  description = "DEC-20: the setup apply role (the only reader of the setup credential), the post-merge plan role (the only reader of the read-only App's key) and the PR-check role, their trusted subjects and policies, and the environment; null unless setup_credential_store is aws and setup_credential_secret_arn is set."
+  value = local.setup_aws ? {
     apply_role_arn     = local.setup_apply_arn
     apply_subject      = local.setup_apply_subject
     apply_environment  = var.setup_apply_environment

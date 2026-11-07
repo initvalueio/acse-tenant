@@ -1,4 +1,5 @@
-# Spec 02e section 3: the namespace acse/<tenant>/ in the customer's own account.
+# Spec 02e section 3: the namespace acse/<tenant>/ in the customer's own account. Self-hosted mode only: in SaaS mode
+# InitValue's pipeline creates the namespace and saas.tf publishes into it write-only (Amendment 6 section A).
 #
 # Secrets: containers only. Spec 02b D-3 asks for a {"status":"empty"} placeholder; this module writes no version at
 # all, because a Terraform-managed secret version is refreshed by reading its value (GetSecretValue), so every plan
@@ -13,7 +14,7 @@
 # settings/*; it never writes evidence/public-key, which keygen owns (ledger 02e section 10.2a).
 
 resource "aws_secretsmanager_secret" "namespace" {
-  for_each = local.secret_paths
+  for_each = local.saas ? {} : local.secret_paths
 
   name                    = local.secret_names[each.key]
   description             = each.value
@@ -25,7 +26,7 @@ resource "aws_secretsmanager_secret" "namespace" {
 }
 
 resource "aws_ssm_parameter" "settings_part" {
-  for_each = local.settings_parts
+  for_each = local.saas ? {} : local.settings_parts
 
   name           = local.settings_part_names[each.key]
   description    = "ACSE settings: part ${split("/", each.key)[1]} of the ${split("/", each.key)[0]} section of config/tenant.yaml. Read it only through settings/${split("/", each.key)[0]} (settings-index-1.0)."
@@ -39,7 +40,7 @@ resource "aws_ssm_parameter" "settings_part" {
 }
 
 resource "aws_ssm_parameter" "settings" {
-  for_each = local.settings_index
+  for_each = local.saas ? {} : local.settings_index
 
   name           = local.settings_names[each.key]
   description    = "ACSE settings: the index (settings-index-1.0) of the ${each.key} section of config/tenant.yaml, published by the setup apply. Do not edit: the next apply overwrites it, and the runtime's daily drift check compares it with the merged file."

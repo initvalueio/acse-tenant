@@ -1,10 +1,11 @@
+# Self-hosted mode only for the AWS resources here; SaaS mode creates neither (spec 02e Amendment 6 section A item 4).
 # The GitHub OIDC trust (T-6) and the promoter's narrow role (spec 02e Amendment 2 item 2; ledger 02e Q-2, section
 # 10.3). cloud.workflow_role is the promoter's role only: trusted for acse-promote.yml on the outbox repository's
 # default branch, reading exactly settings/outbox, settings/naming, evidence/public-key and
 # outbox/promoter/private-key. This is the one namespace-scoped grant; every other reader has its own role.
 
 resource "aws_iam_openid_connect_provider" "github" {
-  count = var.create_github_oidc_provider ? 1 : 0
+  count = var.create_github_oidc_provider && !local.saas ? 1 : 0 # SaaS mode refuses the input (validation.tf)
 
   url            = "https://${local.oidc_host}"
   client_id_list = ["sts.amazonaws.com"]
@@ -48,10 +49,11 @@ locals {
           Resource = local.promoter_parameter_arns
         },
         {
-          Sid      = "ReadThePromotersAppKey"
-          Effect   = "Allow"
-          Action   = "secretsmanager:GetSecretValue"
-          Resource = try(aws_secretsmanager_secret.namespace["outbox/promoter/private-key"].arn, null)
+          Sid    = "ReadThePromotersAppKey"
+          Effect = "Allow"
+          Action = "secretsmanager:GetSecretValue"
+          # SaaS mode (SA-6): InitValue's pipeline creates the secret and the role, so name the secret by its ARN pattern.
+          Resource = local.saas ? "arn:aws:secretsmanager:${local.region}:${local.account}:secret:${local.namespace}/outbox/promoter/private-key-??????" : try(aws_secretsmanager_secret.namespace["outbox/promoter/private-key"].arn, null)
         },
       ],
       var.kms_key_arn == null ? [] : [{

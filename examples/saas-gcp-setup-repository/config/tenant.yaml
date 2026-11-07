@@ -1,0 +1,21 @@
+# Synthetic values. A SaaS tenant (spec 02e Amendment 6): cloud.* names InitValue's runtime account and region, where
+# the runtime and the namespace live (SA-4), not the cloud ACSE scans, which is a cloud connection (spec 02).
+version: "1.2"
+tenant: example-saas
+cloud:
+  provider: aws
+  account: "111122223333"
+  region: ca-central-1
+  namespace: acse/example-saas
+  workflow_role: arn:aws:iam::111122223333:role/acse-promoter-example-saas
+repositories:
+  setup: example-org/acse-setup
+  policies: example-org/acse-policies
+github:
+  read_app_id: 5100001
+  change_app_id: 5100002
+  change_authorized_scope: org-wide
+gate:
+  enforcement: per_repo
+  audience: "acse-gate:gta-5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
+  report_url: "https://acse.example.com/api/gate/v1/reports"

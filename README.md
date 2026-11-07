@@ -33,7 +33,12 @@ account and GitHub organization:
 Nothing in this repository holds, reads or prints a secret value. The workflow uses no GitHub secret and no GitHub
 variable: its cloud access is OIDC only.
 
-AWS only in this release (OD-16). Apache-2.0.
+Two modes. **Self-hosted** (the default) builds all of the above in your own AWS account. **SaaS mode**
+(`saas_publish_role_arn` set; spec 02e Amendment 6) is for tenants whose runtime InitValue hosts: the namespace lives in
+InitValue's AWS runtime account, and the module publishes into it write-only. See [SaaS mode](#saas-mode).
+
+The namespace is on AWS in this release (OD-16). The setup App's keys can be in AWS Secrets Manager or, in either
+mode, in Google Cloud Secret Manager (SA-5). Apache-2.0.
 
 ## What it creates
 
@@ -109,12 +114,18 @@ Further rules:
 | `setup_apply_environment_reviewers` | none | Required reviewers (user and team ids) for every apply. **At least one is required** (SC-1); self-review is prevented and administrators cannot bypass |
 | `setup_oidc_subject_repo` / `outbox_oidc_subject_repo` | `null` | The repo segment of each repository's OIDC `sub`: `owner/name`, or `owner@id/name@id` for repositories on GitHub's immutable subject format. Those are repositories created after 2026-07-15, or ones that opted in (DEC-29) |
 | `setup_default_branch` | `null` | **Required** with `setup_credential_secret_arn`: a pull request's plan cannot look it up |
+| `setup_credential_store` | `"aws"` | Where the setup and plan Apps' keys live: `aws` (the two secret ARNs) or `gcp` (Google Cloud Secret Manager; no AWS setup roles, see `modules/gcp-setup-credential`; SA-5) |
 | `runtime_role_arn` | `null` | Only to refuse a setup role that is the runtime's |
+| `saas_publish_role_arn` | `null` | **SaaS mode** when set: the per-tenant publish role in InitValue's runtime account (must be `cloud.account`). Needs a setup credential (`aws` or `gcp`), and refuses `create_github_oidc_provider` |
+| `saas_publish_on_apply` | `true` | `false` only for the one-time bootstrap apply, which cannot assume the publish role |
+| `saas_app_keys_version` | `null` | Change it to put new versions of the ACSE Read and Change keys. SaaS mode only |
+| `saas_read_app_private_key` / `saas_change_app_private_key` | `null` | Ephemeral, sensitive: the two keys, read from your own store in the apply phase |
 | `warn_unseen_gate_repositories` | `true` | Warn in the plan, never fail, when a gate repository is not visible to ACSE Read |
 | `tags` | `{}` | AWS tags |
 
 Providers: `hashicorp/aws` 6.x, set to `cloud.account` and `cloud.region`; the module refuses any other account or
-region. `integrations/github` 6.x, with `owner` set to the organization that holds the three repositories.
+region. In SaaS mode it must be signed in to your own account (the setup secret's), or need no configuration at all
+when the setup credential is in Google Cloud. `integrations/github` 6.x, with `owner` set to the organization that holds the three repositories.
 
 ## Outputs
 
@@ -124,7 +135,8 @@ These outputs name what the module built:
 - `settings_parameter_names`, `settings_values`, `evidence_public_key_parameter_name` and `parameter_arn_prefix`;
 - `oidc_provider_arn`, `promoter_role_arn`, `promoter_trust_subject`, `promoter_trust_policy`,
   `promoter_read_policy` and `promoter_store_reads`;
-- `ruleset_ids` and `setup_roles`.
+- `ruleset_ids`, `setup_roles` and `setup_oidc_subjects`;
+- `saas`: the publish role, its policy and trust for InitValue's pipeline, the published names, and what was skipped.
 - `settings_index_values`, `settings_part_names`, `settings_part_values` and `settings_payloads`.
 
 These outputs cover the generated files:
@@ -212,6 +224,51 @@ Check warnings never fail a run. GA-4's warning on the pull request comes from A
 runtime posts at its next sync; the check job's summary says so. The module's own GA-4 check runs again in the
 post-merge plan as a secondary signal (DEC-25).
 
+## SaaS mode
+
+Set `saas_publish_role_arn` to the publish role the Access page shows you (SA-3). It is not secret. Then
+`tenant.yaml`'s `cloud.*` names **InitValue's** runtime account and region, where the runtime and `acse/<tenant>/`
+live (SA-4). The cloud ACSE scans is a cloud connection, not `cloud.*`.
+
+What changes:
+- **Not created:** the namespace's secrets and parameters, the GitHub OIDC provider, and the promoter role (SA-6).
+  InitValue's infrastructure pipeline creates them, and the publish role, per tenant (SA-2).
+- **Still created:** the rulesets, the generated files, the apply environment and the setup repository's OIDC
+  subject template, and the setup roles when your keys are in AWS. In SaaS mode those roles go in **your** AWS
+  account (the account of `setup_credential_secret_arn`), and your AWS provider signs in there.
+- **Published write-only** (SA-1). The publish role can write that tenant's `settings/*` and put a new version of the
+  two App keys, and can never read anything. A Terraform parameter or secret-version resource reads its value back on
+  every refresh, so none is used. Instead, on apply only, `scripts/saas-publish.sh` signs in as the publish role with
+  a fresh OIDC token and:
+  - puts every section's parts, then its index (`PutParameter`, Advanced, overwrite), on every apply;
+  - deletes a part or index that left the configuration (`DeleteParameter`), using the slots recorded in state;
+  - puts the ACSE Read and ACSE Change App keys (`PutSecretValue`) when you change `saas_app_keys_version`. Pass the
+    keys as `saas_read_app_private_key` and `saas_change_app_private_key`, read ephemerally in the apply phase.
+
+  State holds `{commit, sha256, parts}` per section and the parameter names, never a value. The plan job and the pull
+  request's job never run the step, so they never assume the role. The runner needs `bash`, `curl`, `python3` and the
+  AWS CLI v2, which GitHub's hosted runners have.
+- **Bootstrap.** The publish role trusts only the workflow's apply job, so the one-time administrator apply sets
+  `saas_publish_on_apply = false`. The workflow's first apply publishes.
+- **For InitValue's pipeline:** the `saas` output renders the publish role's exact policy and trust
+  (`publish_policy`, `publish_trust_policy`); the vectors carry them too.
+
+### A setup credential in Google Cloud (SA-5)
+
+Set `setup_credential_store = "gcp"` and call [`modules/gcp-setup-credential`](modules/gcp-setup-credential) with the
+module's `setup_oidc_subjects` output. It creates one workload identity pool and GitHub provider in your project, and
+grants Secret Manager access to federated principals directly, with no service account:
+- the token's exact `sub` (the same SC-1 subjects the AWS roles trust) maps to `attribute.acse_job`: `apply`, `plan`,
+  `check`, or `none`, which the provider refuses;
+- only `apply` reads the setup App's key and the ACSE App keys; only `plan` reads the read-only App's key; `check`
+  reads nothing.
+
+Secret Manager IAM only allows; it has no resource-level deny like the AWS secrets' policies. Keep these secrets in a
+project where nobody else holds a project-level accessor or owner role. The template (1.1.0) also issues a token for
+audience `acse-setup-gcp`, as `TF_VAR_acse_gcp_web_identity_token_file`. The apply job then federates twice: to Google
+Cloud for the keys, and to InitValue's publish role. The full root is in
+[`examples/saas-gcp-setup-repository`](examples/saas-gcp-setup-repository).
+
 ## Tests
 
 These checks run in CI (`.github/workflows/ci.yml`) and need no credentials:
@@ -221,6 +278,8 @@ These checks run in CI (`.github/workflows/ci.yml`) and need no credentials:
   (`tools/render_vectors.py`) from `vectors/cases/*/tenant.yaml`.
 - `python3 -I tools/check_template.py`. This is the AC-1 static scan of the template: no `secrets.` or `vars.`, only
   allowed expressions, actions pinned by SHA, and no tenant literal.
+- The GCP module's own tests (`modules/gcp-setup-credential/tests`), against a mock provider.
+- SaaS-mode runs in `tests/acse_tenant.tftest.hcl` are plan only, so the publish step never runs in CI.
 
 ## Open decisions
 
@@ -238,6 +297,6 @@ module has not been tested on OpenTofu.
 
 ## Other clouds
 
-This build is AWS only (OD-16). The same pattern works elsewhere:
-- **GCP:** the setup key in Secret Manager, read through Workload Identity Federation.
-- **Azure:** the setup key in Key Vault, read through federated credentials.
+The namespace is AWS only in this build (OD-16). For the setup keys:
+- **GCP:** built, as `setup_credential_store = "gcp"` and `modules/gcp-setup-credential` (SA-5).
+- **Azure:** the same pattern would work with Key Vault and federated credentials. It is not built.

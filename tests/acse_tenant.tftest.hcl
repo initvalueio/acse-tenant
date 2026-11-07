@@ -1,7 +1,9 @@
 # The module against vectors/acse-tenant-vectors-1.0.json, with mock providers only: no AWS or GitHub credential and
 # no network call to either. Each run has its own state (state_key), since the runs describe different tenants.
 # Cases in the vectors file are sorted by name:
-#   cases[0] direct-minimal   cases[2] outbox-and-gate   cases[3] outbox-prefixed-boundary
+#   cases[0] direct-minimal   cases[2] outbox-and-gate   cases[3] outbox-prefixed-boundary   cases[4] saas-gcp-setup
+#
+# SaaS-mode runs are plan only: their publish step is a provisioner that runs on apply, and it must never run here.
 
 mock_provider "aws" {
   mock_resource "aws_secretsmanager_secret" {
@@ -719,6 +721,298 @@ run "refuses_ruleset_enforcement" {
   variables {
     tenant_yaml  = "${file("vectors/cases/direct-minimal/tenant.yaml")}gate:\n  enforcement: ruleset\n  registered_repositories:\n    - repo: acme-corp/acse-policies\n      workflow: .github/workflows/acse-gate.yml\n"
     setup_commit = "0123456789abcdef0123456789abcdef01234567"
+  }
+
+  override_data {
+    target = data.aws_caller_identity.current
+    values = { account_id = "111122223333" }
+  }
+  override_data {
+    target = data.aws_region.current
+    values = { region = "us-east-1" }
+  }
+
+  expect_failures = [terraform_data.tenant_config]
+}
+
+# -- SaaS mode (spec 02e Amendment 6 section A; ledger 02e section 12.8) ------------------------------------------------
+
+run "saas_with_a_gcp_setup_credential" {
+  command   = plan
+  state_key = "saas_with_a_gcp_setup_credential" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = file("vectors/cases/saas-gcp-setup/tenant.yaml")
+    setup_commit                      = "5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de"
+    policies_default_branch           = "main"
+    setup_credential_store            = "gcp"
+    setup_default_branch              = "main"
+    setup_apply_environment_reviewers = { users = [], teams = [1234567] }
+    saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas"
+    saas_app_keys_version             = "2026-11-07"
+  }
+
+  assert {
+    condition     = length(data.aws_caller_identity.current) == 0 && length(data.aws_region.current) == 0
+    error_message = "A SaaS tenant with a GCP-hosted setup credential needs no AWS sign-in at plan time."
+  }
+  assert {
+    condition     = length(aws_secretsmanager_secret.namespace) == 0 && length(aws_ssm_parameter.settings) == 0 && length(aws_ssm_parameter.settings_part) == 0
+    error_message = "SaaS mode creates no namespace resource: InitValue's pipeline does (Amendment 6 A.4)."
+  }
+  assert {
+    condition     = length(aws_iam_openid_connect_provider.github) == 0 && length(aws_iam_role.promoter) == 0 && length(aws_iam_role.setup_apply) == 0 && length(aws_iam_role.setup_plan) == 0 && length(aws_iam_role.setup_check) == 0
+    error_message = "SaaS mode with a GCP-hosted credential creates no OIDC provider, no promoter role and no AWS setup role."
+  }
+  assert {
+    condition     = length(github_repository_environment.setup_apply) == 1 && length(github_actions_repository_oidc_subject_claim_customization_template.setup) == 1 && github_repository_environment.setup_apply[0].can_admins_bypass == false && github_repository_environment.setup_apply[0].prevent_self_review == true
+    error_message = "The apply environment and the subject template are still created: the publish role trusts the apply job's SC-1 subject."
+  }
+  assert {
+    condition     = jsonencode(output.setup_oidc_subjects) == jsonencode(jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[4].expected.setup_oidc_subjects) && output.setup_roles == null
+    error_message = "The three subjects match the vectors, and there are no AWS setup roles."
+  }
+  assert {
+    condition     = jsonencode(jsondecode(output.saas.publish_policy)) == jsonencode(jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[4].expected.saas.publish_policy)
+    error_message = "The publish role's policy differs from the vectors (SA-1)."
+  }
+  assert {
+    condition     = jsonencode(jsondecode(output.saas.publish_trust_policy)) == jsonencode(jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[4].expected.saas.publish_trust_policy) && output.saas.publish_trust_subject == output.setup_oidc_subjects.apply
+    error_message = "The publish role's trust is the apply job's subject only."
+  }
+  assert {
+    condition = alltrue([
+      for s in jsondecode(output.saas.publish_policy).Statement : length(setintersection(toset(flatten([s.Action])), toset(["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath", "ssm:DescribeParameters", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]))) == 0
+    ])
+    error_message = "The publish role never reads (SA-1)."
+  }
+  assert {
+    condition     = jsonencode(output.saas.published_parameters) == jsonencode(jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[4].expected.saas.published_parameters) && jsonencode(output.saas.app_key_secret_names) == jsonencode(jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[4].expected.saas.app_key_secret_names)
+    error_message = "The published parameter and secret names differ from the vectors."
+  }
+  assert {
+    condition     = jsonencode(output.settings_index_values) == jsonencode(jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[4].expected.settings_index_values)
+    error_message = "The published indexes are the same settings-index-1.0 documents as when self-hosted."
+  }
+  assert {
+    condition = length(terraform_data.saas_settings) == length(output.settings_index_values) && alltrue([
+      for section, index in output.settings_index_values : (
+        terraform_data.saas_settings[section].triggers_replace.commit == "5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de"
+        && terraform_data.saas_settings[section].triggers_replace.sha256 == jsondecode(index).sha256
+        && terraform_data.saas_settings[section].triggers_replace.parts == jsondecode(index).parts
+      )
+    ])
+    error_message = "Each section is published by one write-only step whose state is {commit, sha256, parts} and no value."
+  }
+  assert {
+    condition     = length(terraform_data.saas_slot) == length(output.saas.published_parameters) && terraform_data.saas_slot["gate"].input.name == "/acse/example-saas/settings/gate" && terraform_data.saas_slot["gate"].input.role_arn == "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas"
+    error_message = "Every published parameter has a slot that holds its name only, so a later removal deletes it."
+  }
+  assert {
+    condition     = length(terraform_data.saas_app_keys) == 1 && terraform_data.saas_app_keys[0].triggers_replace == "2026-11-07"
+    error_message = "With saas_app_keys_version set, the App keys are put once per version."
+  }
+  assert {
+    condition     = output.generated_files["gate"].content == jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[4].expected.generated_files.gate.content && github_organization_ruleset.branches.name == "acse-change-only-on-acse-branches" && github_organization_ruleset.tags.name == "acse-change-no-tags"
+    error_message = "SaaS mode still generates the files and the rulesets."
+  }
+}
+
+run "saas_with_an_aws_setup_credential_and_an_outbox" {
+  command   = plan
+  state_key = "saas_with_an_aws_setup_credential_and_an_outbox" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = file("vectors/cases/outbox-and-gate/tenant.yaml")
+    setup_commit                      = "566a44a3b3bcd2b692af3477a4bd1d05ae1872ac"
+    policies_default_branch           = "main"
+    outbox_default_branch             = "main"
+    setup_default_branch              = "main"
+    setup_credential_secret_arn       = "arn:aws:secretsmanager:ca-central-1:444455556666:secret:platform/acse-setup-app-AbCdEf"
+    setup_plan_credential_secret_arn  = "arn:aws:secretsmanager:ca-central-1:444455556666:secret:platform/acse-setup-plan-app-MnOpQr"
+    setup_apply_environment_reviewers = { users = [7000001], teams = [] }
+    saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-tenant-01"
+  }
+
+  override_data {
+    target = data.aws_caller_identity.current
+    values = { account_id = "444455556666" }
+  }
+
+  assert {
+    condition     = length(aws_iam_role.promoter) == 0 && output.promoter_role_arn == "arn:aws:iam::111122223333:role/acse-promoter" && output.generated_files["promoter"].path == ".github/acse-promote.json"
+    error_message = "SA-6: SaaS mode never creates the promoter role, even with manage_promoter_role true, but still generates .github/acse-promote.json."
+  }
+  assert {
+    condition     = jsondecode(output.promoter_read_policy).Statement[1].Resource == "arn:aws:secretsmanager:ca-central-1:111122223333:secret:acse/tenant-01/outbox/promoter/private-key-??????"
+    error_message = "The promoter's read policy (for InitValue's pipeline) names its key by ARN pattern in InitValue's account."
+  }
+  assert {
+    condition     = length(aws_iam_role.setup_apply) == 1 && output.setup_roles.apply_role_arn == "arn:aws:iam::444455556666:role/acse-setup-apply" && output.setup_roles.check_role_arn == "arn:aws:iam::444455556666:role/acse-setup-check"
+    error_message = "SA-5: with an AWS-hosted setup credential the setup roles are in the customer's own account, the secret's."
+  }
+  assert {
+    condition     = jsondecode(output.setup_roles.apply_trust_policy).Statement[0].Principal.Federated == "arn:aws:iam::444455556666:oidc-provider/token.actions.githubusercontent.com"
+    error_message = "The setup roles trust the customer's own account's OIDC provider."
+  }
+  assert {
+    condition     = jsondecode(output.saas.publish_trust_policy).Statement[0].Principal.Federated == "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com" && output.saas.publish_trust_subject == output.setup_roles.apply_subject
+    error_message = "The publish role trusts the same apply subject, through InitValue's runtime account's provider."
+  }
+  assert {
+    condition     = length(terraform_data.saas_app_keys) == 0 && length(terraform_data.saas_settings) == 9 && length(aws_secretsmanager_secret.namespace) == 0
+    error_message = "No App keys without a version; every section published; no namespace resource."
+  }
+}
+
+run "saas_large_sections_publish_their_parts" {
+  command   = plan
+  state_key = "saas_large_sections_publish_their_parts" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = file("vectors/cases/large-split/tenant.yaml")
+    setup_commit                      = "fedcba9876543210fedcba9876543210fedcba98"
+    policies_default_branch           = "main"
+    setup_credential_store            = "gcp"
+    setup_default_branch              = "main"
+    setup_apply_environment_reviewers = { users = [1], teams = [] }
+    saas_publish_role_arn             = "arn:aws:iam::777788889999:role/acse-saas-publish"
+  }
+
+  assert {
+    condition     = terraform_data.saas_settings["gate"].triggers_replace.parts == jsondecode(output.settings_index_values["gate"]).parts && terraform_data.saas_settings["gate"].triggers_replace.parts > 0
+    error_message = "A split section records its part count, so a later shrink knows which parts to delete."
+  }
+  assert {
+    condition     = length(terraform_data.saas_slot) == length(output.settings_parameter_names) + length(output.settings_part_names) && alltrue([for key, name in output.settings_part_names : terraform_data.saas_slot[key].input.name == name])
+    error_message = "Every part has a slot."
+  }
+}
+
+run "saas_bootstrap_publishes_nothing" {
+  command   = plan
+  state_key = "saas_bootstrap_publishes_nothing" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = file("vectors/cases/saas-gcp-setup/tenant.yaml")
+    setup_commit                      = "5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de"
+    policies_default_branch           = "main"
+    setup_credential_store            = "gcp"
+    setup_default_branch              = "main"
+    setup_apply_environment_reviewers = { users = [1], teams = [] }
+    saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas"
+    saas_publish_on_apply             = false
+    saas_app_keys_version             = "2026-11-07"
+  }
+
+  assert {
+    condition     = length(terraform_data.saas_settings) == 0 && length(terraform_data.saas_app_keys) == 0 && length(terraform_data.saas_slot) == 5
+    error_message = "The bootstrap apply publishes nothing; the slots exist, so turning publishing off never deletes."
+  }
+}
+
+run "refuses_a_saas_role_outside_the_runtime_account" {
+  command   = plan
+  state_key = "refuses_a_saas_role_outside_the_runtime_account" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = file("vectors/cases/saas-gcp-setup/tenant.yaml")
+    setup_commit                      = "5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de"
+    setup_credential_store            = "gcp"
+    setup_default_branch              = "main"
+    setup_apply_environment_reviewers = { users = [1], teams = [] }
+    saas_publish_role_arn             = "arn:aws:iam::999999999999:role/acse-saas-publish-example-saas"
+  }
+
+  expect_failures = [terraform_data.tenant_config]
+}
+
+run "refuses_saas_without_a_setup_credential" {
+  command   = plan
+  state_key = "refuses_saas_without_a_setup_credential" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml           = file("vectors/cases/saas-gcp-setup/tenant.yaml")
+    setup_commit          = "5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de"
+    saas_publish_role_arn = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas"
+  }
+
+  expect_failures = [terraform_data.tenant_config]
+}
+
+run "refuses_saas_setup_roles_in_the_runtime_account" {
+  command   = plan
+  state_key = "refuses_saas_setup_roles_in_the_runtime_account" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = file("vectors/cases/saas-gcp-setup/tenant.yaml")
+    setup_commit                      = "5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de"
+    setup_default_branch              = "main"
+    setup_credential_secret_arn       = "arn:aws:secretsmanager:ca-central-1:111122223333:secret:platform/acse-setup-app-AbCdEf"
+    setup_plan_credential_secret_arn  = "arn:aws:secretsmanager:ca-central-1:111122223333:secret:platform/acse-setup-plan-app-MnOpQr"
+    setup_apply_environment_reviewers = { users = [1], teams = [] }
+    saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas"
+  }
+
+  override_data {
+    target = data.aws_caller_identity.current
+    values = { account_id = "111122223333" }
+  }
+
+  expect_failures = [terraform_data.tenant_config]
+}
+
+run "refuses_saas_creating_an_oidc_provider" {
+  command   = plan
+  state_key = "refuses_saas_creating_an_oidc_provider" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = file("vectors/cases/saas-gcp-setup/tenant.yaml")
+    setup_commit                      = "5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de"
+    setup_credential_store            = "gcp"
+    setup_default_branch              = "main"
+    setup_apply_environment_reviewers = { users = [1], teams = [] }
+    saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas"
+    create_github_oidc_provider       = true
+  }
+
+  expect_failures = [terraform_data.tenant_config]
+}
+
+run "refuses_app_keys_version_when_self_hosted" {
+  command   = plan
+  state_key = "refuses_app_keys_version_when_self_hosted" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml           = file("vectors/cases/direct-minimal/tenant.yaml")
+    setup_commit          = "0123456789abcdef0123456789abcdef01234567"
+    saas_app_keys_version = "2026-11-07"
+  }
+
+  override_data {
+    target = data.aws_caller_identity.current
+    values = { account_id = "111122223333" }
+  }
+  override_data {
+    target = data.aws_region.current
+    values = { region = "us-east-1" }
+  }
+
+  expect_failures = [terraform_data.tenant_config]
+}
+
+run "refuses_aws_secret_arns_with_a_gcp_store" {
+  command   = plan
+  state_key = "refuses_aws_secret_arns_with_a_gcp_store" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = file("vectors/cases/direct-minimal/tenant.yaml")
+    setup_commit                      = "0123456789abcdef0123456789abcdef01234567"
+    setup_credential_store            = "gcp"
+    setup_default_branch              = "main"
+    setup_credential_secret_arn       = "arn:aws:secretsmanager:us-east-1:111122223333:secret:platform/setup-app-AbCdEf"
+    setup_plan_credential_secret_arn  = "arn:aws:secretsmanager:us-east-1:111122223333:secret:platform/setup-plan-app-AbCdEf"
+    setup_apply_environment_reviewers = { users = [1], teams = [] }
   }
 
   override_data {

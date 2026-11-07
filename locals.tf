@@ -11,6 +11,13 @@ locals {
   region    = tostring(local.cloud.region)
   namespace = tostring(local.cloud.namespace) # acse/<tenant>, checked in validation.tf
 
+  # -- the mode (spec 02e Amendment 6 section A) ----------------------------------------------------------------
+  # Self-hosted: the namespace is in cloud.account, the customer's own, and this module creates it.
+  # SaaS: cloud.account is InitValue's runtime account (SA-4). This module creates nothing there; it publishes
+  # settings/* and the App keys write-only through saas_publish_role_arn (saas.tf).
+  saas         = var.saas_publish_role_arn != null
+  saas_publish = local.saas && var.saas_publish_on_apply
+
   # -- repositories ---------------------------------------------------------------------------------------------
   repositories  = local.config.repositories
   has_outbox    = try(local.repositories.outbox, null) != null
@@ -126,10 +133,10 @@ locals {
   promoter_role_arn  = tostring(local.cloud.workflow_role)
   promoter_role_path = local.role_match == null ? "/" : "/${local.role_match[1]}"
   promoter_role_name = local.role_match == null ? "" : local.role_match[2]
-  manage_role        = local.has_outbox && var.manage_promoter_role
+  manage_role        = local.has_outbox && var.manage_promoter_role && !local.saas # SA-6: InitValue's pipeline in SaaS mode
 
   oidc_host         = "token.actions.githubusercontent.com"
-  oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : "arn:aws:iam::${local.account}:oidc-provider/${local.oidc_host}"
+  oidc_provider_arn = var.create_github_oidc_provider && !local.saas ? aws_iam_openid_connect_provider.github[0].arn : "arn:aws:iam::${local.account}:oidc-provider/${local.oidc_host}"
 
   outbox_default_branch = !local.has_outbox ? null : coalesce(var.outbox_default_branch, "UNSET-outbox_default_branch")
   outbox_sub_repo       = !local.has_outbox ? null : coalesce(var.outbox_oidc_subject_repo, local.outbox_full)

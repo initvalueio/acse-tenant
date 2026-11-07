@@ -1,8 +1,9 @@
-# acse-setup-apply.yml -- template 1.0.0, from initvalueio/acse-tenant (Apache-2.0).
+# acse-setup-apply.yml -- template 1.1.0, from initvalueio/acse-tenant (Apache-2.0).
 #
 # The setup repository's pipeline (spec 02e section 1.1, T-5, T-8). The apply creates the namespace, the promoter's
 # OIDC trust, the organization rulesets, the generated config files and the setup roles, and publishes settings/*
-# from the merged config/tenant.yaml.
+# from the merged config/tenant.yaml. In SaaS mode it creates no namespace, OIDC provider or promoter role and
+# publishes settings/* write-only into InitValue's namespace.
 #
 # Customer-applied (ADR-0073 Amendment 8, W-9): copy this file unchanged. It holds no tenant value, so it is the same
 # file in every setup repository. It reads no repository secret and no repository variable (spec 02e AC-1): cloud
@@ -25,6 +26,14 @@
 # What this file gives your terraform/ root:
 #   AWS_WEB_IDENTITY_TOKEN_FILE   a GitHub OIDC token for audience sts.amazonaws.com (for assume_role_with_web_identity
 #                                 in your provider and backend)
+#   TF_VAR_acse_gcp_web_identity_token_file
+#                                 a GitHub OIDC token for audience acse-setup-gcp, for an external_account credential
+#                                 when your setup App's keys are in Google Cloud (setup_credential_store = gcp, SA-5).
+#                                 Roots that do not declare the variable ignore it.
+#
+# SaaS mode (spec 02e Amendment 6 section A): the apply also publishes settings/* into InitValue's namespace through
+# the publish role. The module's publish step takes its own fresh OIDC token, so this file is the same in both modes;
+# only the apply job ever reaches that role, because only its subject is trusted.
 #   TF_VAR_acse_setup_phase       "check", "plan" or "apply"
 #   TF_VAR_setup_commit           the commit being planned or applied (generated_from.commit)
 #   terraform init                -backend-config=backend.<phase>.hcl when that file exists in terraform/
@@ -78,7 +87,7 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
 
-      - name: GitHub OIDC token for AWS STS
+      - name: GitHub OIDC tokens for AWS STS and GCP STS
         run: |
           set -euo pipefail
           umask 077
@@ -87,6 +96,11 @@ jobs:
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
             | python3 -I -c 'import json, sys; v = json.load(sys.stdin)["value"]; print("::add-mask::" + v); open(sys.argv[1], "w").write(v)' "$token_file"
           echo "AWS_WEB_IDENTITY_TOKEN_FILE=$token_file" >> "$GITHUB_ENV"
+          gcp_token_file="$RUNNER_TEMP/acse-gcp-web-identity-token"
+          curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=acse-setup-gcp" \
+            | python3 -I -c 'import json, sys; v = json.load(sys.stdin)["value"]; print("::add-mask::" + v); open(sys.argv[1], "w").write(v)' "$gcp_token_file"
+          echo "TF_VAR_acse_gcp_web_identity_token_file=$gcp_token_file" >> "$GITHUB_ENV"
 
       - name: terraform init
         working-directory: terraform
@@ -153,7 +167,7 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
 
-      - name: GitHub OIDC token for AWS STS
+      - name: GitHub OIDC tokens for AWS STS and GCP STS
         run: |
           set -euo pipefail
           umask 077
@@ -162,6 +176,11 @@ jobs:
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
             | python3 -I -c 'import json, sys; v = json.load(sys.stdin)["value"]; print("::add-mask::" + v); open(sys.argv[1], "w").write(v)' "$token_file"
           echo "AWS_WEB_IDENTITY_TOKEN_FILE=$token_file" >> "$GITHUB_ENV"
+          gcp_token_file="$RUNNER_TEMP/acse-gcp-web-identity-token"
+          curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=acse-setup-gcp" \
+            | python3 -I -c 'import json, sys; v = json.load(sys.stdin)["value"]; print("::add-mask::" + v); open(sys.argv[1], "w").write(v)' "$gcp_token_file"
+          echo "TF_VAR_acse_gcp_web_identity_token_file=$gcp_token_file" >> "$GITHUB_ENV"
 
       - name: terraform init
         working-directory: terraform
@@ -246,7 +265,7 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
 
-      - name: GitHub OIDC token for AWS STS
+      - name: GitHub OIDC tokens for AWS STS and GCP STS
         run: |
           set -euo pipefail
           umask 077
@@ -255,6 +274,11 @@ jobs:
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
             | python3 -I -c 'import json, sys; v = json.load(sys.stdin)["value"]; print("::add-mask::" + v); open(sys.argv[1], "w").write(v)' "$token_file"
           echo "AWS_WEB_IDENTITY_TOKEN_FILE=$token_file" >> "$GITHUB_ENV"
+          gcp_token_file="$RUNNER_TEMP/acse-gcp-web-identity-token"
+          curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=acse-setup-gcp" \
+            | python3 -I -c 'import json, sys; v = json.load(sys.stdin)["value"]; print("::add-mask::" + v); open(sys.argv[1], "w").write(v)' "$gcp_token_file"
+          echo "TF_VAR_acse_gcp_web_identity_token_file=$gcp_token_file" >> "$GITHUB_ENV"
 
       - name: terraform init
         working-directory: terraform
@@ -301,7 +325,7 @@ jobs:
           rm -f "$RUNNER_TEMP/acse-plan.json"
 
       # The OIDC token is short-lived; take a fresh one for the apply's own sign-in.
-      - name: Fresh GitHub OIDC token for AWS STS
+      - name: Fresh GitHub OIDC tokens for AWS STS and GCP STS
         run: |
           set -euo pipefail
           umask 077
@@ -310,6 +334,11 @@ jobs:
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
             | python3 -I -c 'import json, sys; v = json.load(sys.stdin)["value"]; print("::add-mask::" + v); open(sys.argv[1], "w").write(v)' "$token_file"
           echo "AWS_WEB_IDENTITY_TOKEN_FILE=$token_file" >> "$GITHUB_ENV"
+          gcp_token_file="$RUNNER_TEMP/acse-gcp-web-identity-token"
+          curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=acse-setup-gcp" \
+            | python3 -I -c 'import json, sys; v = json.load(sys.stdin)["value"]; print("::add-mask::" + v); open(sys.argv[1], "w").write(v)' "$gcp_token_file"
+          echo "TF_VAR_acse_gcp_web_identity_token_file=$gcp_token_file" >> "$GITHUB_ENV"
 
       - name: terraform apply (publishes settings)
         working-directory: terraform
