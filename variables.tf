@@ -149,7 +149,7 @@ variable "warn_unseen_gate_repositories" {
 # -- The setup apply's own identities (DEC-20, the Architecture Owner 2026-11-07) ---------------------------------------------------
 
 variable "setup_credential_secret_arn" {
-  description = "ARN of the Secrets Manager secret, named by you and outside acse/<tenant>/, that holds your setup GitHub App's private key (organization administration write). The module never reads it: it attaches a resource policy so that only the setup apply role (and setup_credential_extra_reader_arns) can read it. Null: no setup roles are created or wired."
+  description = "ARN of the Secrets Manager secret, named by you and outside acse/<tenant>/, that holds your setup GitHub App's private key (organization administration write). It is in cloud.account when self-hosted, and in your own account in SaaS mode (the setup roles go there). The module never reads it: it attaches a resource policy so that only the setup apply role (and setup_credential_extra_reader_arns) can read it. Null: no setup roles are created or wired."
   type        = string
   default     = null
 
@@ -255,8 +255,75 @@ variable "setup_apply_environment_reviewers" {
   default = { users = [], teams = [] }
 }
 
+variable "setup_credential_store" {
+  description = "Where the setup and plan Apps' keys live (spec 02e Amendment 6 SA-5). aws (default): Secrets Manager secrets named by setup_credential_secret_arn and setup_plan_credential_secret_arn; the module creates the three IAM roles and the secrets' resource policies. gcp: Secret Manager in your own DEDICATED Google Cloud project (gcp_setup_project), reached through Workload Identity Federation; this module then creates no AWS identity, and modules/gcp-setup-credential creates the pool, the provider and the secret grants from this module's setup_oidc_subjects output. Either way the module creates the apply environment and the OIDC subject template."
+  type        = string
+  default     = "aws"
+
+  validation {
+    condition     = contains(["aws", "gcp"], var.setup_credential_store)
+    error_message = "setup_credential_store must be aws or gcp."
+  }
+}
+
+variable "gcp_setup_project" {
+  description = "With setup_credential_store = gcp: the project id of your DEDICATED setup project. It holds only the workload identity pool, the setup App's key, the plan App's key and, for Outbox tenants in SaaS mode, the promoter App's key, and nothing else (Koushik, 2026-11-07: \"Dedicated Project, broad roles\"). The apply job gets roles/editor and roles/iam.securityAdmin on this project only. The plan cannot verify that the project holds nothing else: that is your requirement. Pass the same value to modules/gcp-setup-credential."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.gcp_setup_project == null || can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.gcp_setup_project))
+    error_message = "gcp_setup_project must be a Google Cloud project id."
+  }
+}
+
 variable "runtime_role_arn" {
   description = "Optional: the ACSE runtime's role ARN, only so the module can refuse a setup role that is the same role."
   type        = string
   default     = null
+}
+
+# -- SaaS mode (spec 02e Amendment 6 section A; ledger 02e section 12.8, SA-1 to SA-7) -------------------------------
+# InitValue hosts the runtime and the namespace acse/<tenant>/ in its own AWS runtime account (tenant.yaml cloud.*
+# names that account, SA-4). The setup apply reaches it only through one narrow, write-only role per tenant, which
+# InitValue's infrastructure pipeline creates (SA-2). The module then skips the namespace, the OIDC provider and the
+# promoter role (SA-6), and publishes settings/* and the two App keys write-only, on apply only (SA-1).
+
+variable "saas_publish_role_arn" {
+  description = "SaaS mode: the per-tenant publish role in InitValue's runtime account, as the Access page and onboarding show it (SA-3). Null: self-hosted mode, the namespace is in your own account and this module creates it. The role's trust is the apply job's SC-1 subject; it may PutParameter and DeleteParameter on acse/<tenant>/settings/* and PutSecretValue on the two App-key secrets, and never read (SA-1)."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.saas_publish_role_arn == null || can(regex("^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,512}$", var.saas_publish_role_arn))
+    error_message = "saas_publish_role_arn must be an IAM role ARN, arn:aws:iam::<12 digits>:role/[path/]<name>."
+  }
+}
+
+variable "saas_publish_on_apply" {
+  description = "SaaS mode: publish settings/* on apply. Set false only for the one-time bootstrap apply an administrator runs outside the workflow: the publish role trusts only acse-setup-apply.yml's apply job, so nothing else can assume it. The next apply by the workflow publishes. Turning it off later stops publishing and deletes nothing."
+  type        = bool
+  default     = true
+}
+
+variable "saas_app_keys_version" {
+  description = "SaaS mode: a label you change (for example a date) whenever the ACSE Read or ACSE Change App key changes. When it changes, the apply puts a new version of github/read/private-key and github/change/private-key in InitValue's namespace with PutSecretValue. The role cannot read, so the module cannot see whether the keys changed: this label is how you tell it, like a provider's *_wo_version. Null: never put the keys."
+  type        = string
+  default     = null
+}
+
+variable "saas_read_app_private_key" {
+  description = "SaaS mode: the ACSE Read App's private key (PEM), read ephemerally by your root from your own store, in the apply phase only. Ephemeral: it never reaches state or the plan file. Used only when saas_app_keys_version changes."
+  type        = string
+  default     = null
+  sensitive   = true
+  ephemeral   = true
+}
+
+variable "saas_change_app_private_key" {
+  description = "SaaS mode: the ACSE Change App's private key (PEM), as saas_read_app_private_key."
+  type        = string
+  default     = null
+  sensitive   = true
+  ephemeral   = true
 }

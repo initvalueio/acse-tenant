@@ -76,6 +76,39 @@ CASE_INPUTS = {
         "outbox_oidc_subject_repo": "globex@9000001/platform-acse-outbox@9000003",
         "setup_apply_environment_reviewers": {"users": [7000001], "teams": []},
     },
+    "saas-gcp-setup": {
+        "setup_commit": "5aa5c0de5aa5c0de5aa5c0de5aa5c0de5aa5c0de",
+        "outbox_default_branch": None,
+        "policies_default_branch": "main",
+        "outbox_oidc_subject_includes_job_workflow_ref": False,
+        "kms_key_arn": None,
+        "setup_credential_secret_arn": None,
+        "setup_credential_store": "gcp",
+        "setup_default_branch": "main",
+        "setup_oidc_subject_repo": None,
+        "setup_apply_environment_reviewers": {"users": [], "teams": [1234567]},
+        "saas_publish_role_arn": "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas",
+        "saas_publish_on_apply": True,
+        "saas_app_keys_version": "2026-11-07",
+        "gcp_setup_project": "example-acse-setup",
+    },
+    "saas-gcp-setup-outbox": {
+        "setup_commit": "5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de",
+        "outbox_default_branch": "main",
+        "policies_default_branch": "main",
+        "outbox_oidc_subject_includes_job_workflow_ref": False,
+        "kms_key_arn": None,
+        "setup_credential_secret_arn": None,
+        "setup_credential_store": "gcp",
+        "setup_default_branch": "main",
+        "setup_oidc_subject_repo": None,
+        "outbox_oidc_subject_repo": None,
+        "setup_apply_environment_reviewers": {"users": [], "teams": [1234567]},
+        "saas_publish_role_arn": "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas-outbox",
+        "saas_publish_on_apply": True,
+        "saas_app_keys_version": None,
+        "gcp_setup_project": "example-acse-setup",
+    },
 }
 
 WHY = {
@@ -89,6 +122,14 @@ WHY = {
                                 "GitHub's immutable subject format (owner@id/name@id) for the setup and outbox repositories "
                                 "and a customer-managed key; a gate list without an audience generates no gate file; "
                                 "'&' in a setting is escaped as \\u0026.",
+    "saas-gcp-setup": "SaaS mode (spec 02e Amendment 6): cloud.* is InitValue's runtime account; no namespace, OIDC "
+                      "provider or promoter role is created; settings/* are published write-only through the publish "
+                      "role, whose policy and trust are rendered for InitValue's pipeline; the setup credential is in "
+                      "Google Cloud (SA-5), so there are no AWS setup roles, only the three OIDC subjects.",
+    "saas-gcp-setup-outbox": "SaaS Outbox tenant with a dedicated GCP setup project (Koushik, 2026-11-07): the promoter's "
+                             "App key lives in that project, so the namespace has no outbox/promoter/private-key and the "
+                             "promoter's AWS read policy (rendered for InitValue's pipeline) grants the three parameters "
+                             "only; promoter_oidc carries what the promoter's WIF provider binds.",
 }
 
 
@@ -149,12 +190,14 @@ def render_case(name: str) -> dict:
     account, region, namespace = str(cloud["account"]), cloud["region"], cloud["namespace"]
     repos = config["repositories"]
     has_outbox = repos.get("outbox") is not None
+    # SaaS with a GCP setup project: the promoter key is in that project, never in the namespace.
+    key_in_gcp = bool(inputs.get("saas_publish_role_arn")) and inputs.get("setup_credential_store") == "gcp" and has_outbox
     naming = config.get("naming", {})
     boundary = f'{naming.get("prefix", "")}acse{naming.get("suffix", "")}'
     sha = "sha256:" + hashlib.sha256(raw).hexdigest()
 
     secret_paths = ["evidence/seal-key/current", "evidence/seal-key/next", "github/change/private-key",
-                    "github/read/private-key", "tfc/token"] + (["outbox/promoter/private-key"] if has_outbox else [])
+                    "github/read/private-key", "tfc/token"] + (["outbox/promoter/private-key"] if has_outbox and not key_in_gcp else [])
     secret_names = {p: f"{namespace}/{p}" for p in sorted(secret_paths)}
 
     values = {s: config[s] for s in SECTIONS if s in config}
@@ -207,10 +250,12 @@ def render_case(name: str) -> dict:
             {"Action": "ssm:GetParameters", "Effect": "Allow", "Sid": "ReadThePromotersThreeParameters",
              "Resource": [f"{arn_prefix}/settings/outbox", f"{arn_prefix}/settings/naming",
                           f"{arn_prefix}/evidence/public-key"]},
-            {"Action": "secretsmanager:GetSecretValue", "Effect": "Allow", "Sid": "ReadThePromotersAppKey",
-             "Resource": f"arn:aws:secretsmanager:{region}:{account}:secret:{namespace}/outbox/promoter/private-key-??????"},
         ]
-        if inputs["kms_key_arn"]:
+        if not key_in_gcp:
+            statements.append(
+                {"Action": "secretsmanager:GetSecretValue", "Effect": "Allow", "Sid": "ReadThePromotersAppKey",
+                 "Resource": f"arn:aws:secretsmanager:{region}:{account}:secret:{namespace}/outbox/promoter/private-key-??????"})
+        if inputs["kms_key_arn"] and not key_in_gcp:
             statements.append({"Action": "kms:Decrypt", "Effect": "Allow",
                                "Sid": "DecryptThePromotersAppKeyThroughSecretsManagerOnly",
                                "Resource": inputs["kms_key_arn"],
@@ -234,24 +279,40 @@ def render_case(name: str) -> dict:
             "store_reads": {
                 "parameters": [f"/{namespace}/settings/outbox", f"/{namespace}/settings/naming",
                                f"/{namespace}/evidence/public-key"],
-                "secret": f"{namespace}/outbox/promoter/private-key",
+                "secret": None if key_in_gcp else f"{namespace}/outbox/promoter/private-key",
             },
         }
+        expected["promoter_oidc"] = {"repository": outbox, "subject": subject, "job_workflow_ref": workflow_ref,
+                                     "key_in_gcp": key_in_gcp}
     else:
         expected["promoter"] = None
+        expected["promoter_oidc"] = None
+    expected["gcp_setup_project"] = inputs.get("gcp_setup_project") if inputs.get("setup_credential_store") == "gcp" else None
 
-    if inputs.get("setup_credential_secret_arn"):
+    saas_role = inputs.get("saas_publish_role_arn")
+    store = inputs.get("setup_credential_store", "aws")
+    setup_aws = store == "aws" and bool(inputs.get("setup_credential_secret_arn"))
+    setup_enabled = setup_aws or store == "gcp"
+    apply_sub = plan_sub = check_sub = None
+    if setup_enabled:
         setup = repos["setup"]
         branch = inputs["setup_default_branch"]
         workflow = f"{setup}/.github/workflows/acse-setup-apply.yml"
-        apply_arn = f"arn:aws:iam::{account}:role/acse-setup-apply"
-        check_arn = f"arn:aws:iam::{account}:role/acse-setup-check"
-        plan_arn = f"arn:aws:iam::{account}:role/acse-setup-plan"
         segment = inputs.get("setup_oidc_subject_repo") or setup
         apply_sub = f"repo:{segment}:environment:acse-setup-apply:job_workflow_ref:{workflow}@refs/heads/{branch}"
         check_sub = f"repo:{segment}:pull_request:job_workflow_ref:{workflow}@refs/pull/*/merge"
         plan_sub = f"repo:{segment}:ref:refs/heads/{branch}:job_workflow_ref:{workflow}@refs/heads/{branch}"
-        provider = f"arn:aws:iam::{account}:oidc-provider/{OIDC_HOST}"
+        expected["setup_oidc_subjects"] = {"apply": apply_sub, "check": check_sub, "plan": plan_sub}
+    else:
+        expected["setup_oidc_subjects"] = None
+
+    if setup_aws:
+        # Self-hosted: cloud.account. SaaS: the account of the setup secret, the customer's own.
+        setup_account = inputs["setup_credential_secret_arn"].split(":")[4] if saas_role else account
+        apply_arn = f"arn:aws:iam::{setup_account}:role/acse-setup-apply"
+        check_arn = f"arn:aws:iam::{setup_account}:role/acse-setup-check"
+        plan_arn = f"arn:aws:iam::{setup_account}:role/acse-setup-plan"
+        provider = f"arn:aws:iam::{setup_account}:oidc-provider/{OIDC_HOST}"
 
         def secret_policy(reader, word, extra=True):
             return {"Version": "2012-10-17", "Statement": [
@@ -287,6 +348,37 @@ def render_case(name: str) -> dict:
         }
     else:
         expected["setup_roles"] = None
+
+    if saas_role:
+        secret_arn = f"arn:aws:secretsmanager:{region}:{account}:secret:{namespace}"
+        policy = [
+            {"Sid": "WriteThisTenantsSettingsOnly", "Effect": "Allow",
+             "Action": ["ssm:PutParameter", "ssm:DeleteParameter"], "Resource": f"{arn_prefix}/settings/*"},
+            {"Sid": "PutThisTenantsAppKeysOnly", "Effect": "Allow", "Action": "secretsmanager:PutSecretValue",
+             "Resource": [f"{secret_arn}/github/read/private-key-??????", f"{secret_arn}/github/change/private-key-??????"]},
+        ]
+        if inputs["kms_key_arn"]:
+            policy.append({"Sid": "EncryptTheAppKeysThroughSecretsManagerOnly", "Effect": "Allow",
+                           "Action": "kms:GenerateDataKey", "Resource": inputs["kms_key_arn"],
+                           "Condition": {"StringEquals": {"kms:ViaService": f"secretsmanager.{region}.amazonaws.com"}}})
+        expected["saas"] = {
+            "publish_role_arn": saas_role,
+            "publish_on_apply": inputs.get("saas_publish_on_apply", True),
+            "publish_trust_subject": apply_sub,
+            "publish_trust_policy": {"Version": "2012-10-17", "Statement": [{
+                "Sid": "AcseSetupApplyJobOnly", "Effect": "Allow",
+                "Principal": {"Federated": f"arn:aws:iam::{account}:oidc-provider/{OIDC_HOST}"},
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {"StringEquals": {f"{OIDC_HOST}:aud": "sts.amazonaws.com", f"{OIDC_HOST}:sub": apply_sub}}}]},
+            "publish_policy": {"Version": "2012-10-17", "Statement": policy},
+            "published_parameters": dict(sorted({**settings_names, **{k: f"/{namespace}/settings/{k}" for k in parts}}.items())),
+            "app_key_secret_names": {"change": f"{namespace}/github/change/private-key",
+                                     "read": f"{namespace}/github/read/private-key"},
+            "app_keys_version": inputs.get("saas_app_keys_version"),
+            "skipped": ["namespace", "github_oidc_provider", "promoter_role"],
+        }
+    else:
+        expected["saas"] = None
 
     generated_from = {"repository": repos["setup"], "commit": inputs["setup_commit"], "tenant_yaml_sha256": sha}
     files: dict = {}
@@ -356,7 +448,7 @@ STATIC = {
         "type": "String, data_type text, tier Advanced (8 KB) for every index and part; more than 64 parts refuses to plan",
     },
     "setup_roles": {
-        "when": "setup_credential_secret_arn is set (DEC-20)",
+        "when": "setup_credential_store is aws and setup_credential_secret_arn is set (DEC-20); with setup_credential_store gcp there are no AWS roles, only the environment, the subject template and the three subjects (setup_oidc_subjects), which modules/gcp-setup-credential binds (SA-5)",
         "subject_template": "the setup repository's OIDC subject template is always include_claim_keys [repo, context, job_workflow_ref] (SC-1); <segment> is setup_oidc_subject_repo, owner/name or owner@id/name@id (immutable format)",
         "apply": {"name": "acse-setup-apply (setup_apply_role_name)",
                   "sub": "repo:<segment>:environment:acse-setup-apply:job_workflow_ref:<setup>/.github/workflows/acse-setup-apply.yml@refs/heads/<default branch>",
@@ -374,6 +466,29 @@ STATIC = {
                   "reads": "never the setup credential, and no GitHub credential at all (SC-5): the pull request plans the cloud side only",
                   "policies": "setup_check_policy_arns (default ReadOnlyAccess)"},
         "environment": "acse-setup-apply in the setup repository: deployable from the default branch only, can_admins_bypass false, prevent_self_review true, at least one required reviewer",
+    },
+    "saas": {
+        "when": "saas_publish_role_arn is set (spec 02e Amendment 6 section A; ledger 02e section 12.8, SA-1 to SA-7)",
+        "cloud": "tenant.yaml cloud.* names InitValue's runtime account and region, which hold the runtime, the namespace and the publish role (SA-4); the publish role must be in cloud.account",
+        "skipped": "the namespace (secret containers and parameters as resources), the GitHub OIDC provider, and the promoter role (SA-6): InitValue's pipeline creates them",
+        "kept": "the rulesets, the generated files, the setup apply environment and OIDC subject template, and the setup roles when setup_credential_store is aws (in the customer's own account, the account of setup_credential_secret_arn)",
+        "publish": "write-only, on apply only, by provisioners that call scripts/saas-publish.sh as the publish role: PutParameter (String, text, Advanced, overwrite) for each part then the index of every section on every apply; DeleteParameter for a part or index that leaves the configuration (one terraform_data slot per parameter, deleted on destroy); PutSecretValue on github/read/private-key and github/change/private-key when saas_app_keys_version changes. State holds {commit, sha256, parts} per section and parameter names, never a value",
+        "publish_role": {"trust": "the apply job's SC-1 subject, through cloud.account's GitHub OIDC provider, aud sts.amazonaws.com, StringEquals",
+                         "grants": ["ssm:PutParameter and ssm:DeleteParameter on arn:aws:ssm:<region>:<account>:parameter/acse/<tenant>/settings/*",
+                                    "secretsmanager:PutSecretValue on acse/<tenant>/github/read/private-key-?????? and acse/<tenant>/github/change/private-key-??????",
+                                    "kms:GenerateDataKey via secretsmanager.<region>.amazonaws.com, only when kms_key_arn is set"],
+                         "never": "ssm:GetParameter*, ssm:DescribeParameters, secretsmanager:GetSecretValue, secretsmanager:DescribeSecret",
+                         "created_by": "InitValue's infrastructure pipeline, per tenant (SA-2); the module only renders publish_policy and publish_trust_policy"},
+    },
+    "gcp_setup_project": {
+        "when": "setup_credential_store is gcp (SA-5; Koushik, 2026-11-07: \"I prefer Dedicated Project, broad roles..... but also ensure the promoter keu for outbox tenants also lives here in this project\")",
+        "holds": "the workload identity pool and its providers, the setup App key, the plan App key, the ACSE Read and Change App keys (SaaS), and the promoter App key (Outbox, SaaS); nothing else, which the customer confirms (gcp_setup_project_is_dedicated) because Terraform cannot check it",
+        "grants": {"apply": "roles/editor and roles/iam.securityAdmin on that project only; reads the setup key and the ACSE App keys",
+                   "plan": "plan_project_roles (default roles/viewer, roles/iam.securityReviewer); reads only the plan key",
+                   "check": "check_project_roles (default roles/viewer, roles/iam.securityReviewer); reads nothing",
+                   "promote": "its own provider (github-promoter, audience acse-promote-gcp) in the same pool; acse-promote.yml on the outbox's default branch (sub and job_workflow_ref); reads exactly the promoter key; no project role"},
+        "outputs": "modules/gcp-setup-credential: workload_identity_provider, promoter_workload_identity_provider, promoter_key_secret_name (projects/<project>/secrets/<name>), promoter_audience",
+        "promoter_key": "in SaaS mode the promoter key is in this project and never in InitValue's namespace (SA-6 as amended); promoter template 1.1.0 (core) reads it through WIF",
     },
     "promoter_role": {
         "sub_repo_segment": "outbox_oidc_subject_repo: owner/name or owner@id/name@id (immutable format)",
@@ -434,11 +549,13 @@ def render() -> str:
     names = sorted(p.name for p in CASES.iterdir() if (p / "tenant.yaml").is_file())
     doc = {
         "acse_tenant_vectors_version": "1.0",
-        "description": "Governed vectors of the acse-tenant module (spec 02e sections 3 and 4, Amendments 2 to 4; ledger "
-                       "02e sections 10.2a, 10.3, 10.10 and 11.0b). Every store path the module creates or grants, and the "
+        "description": "Governed vectors of the acse-tenant module (spec 02e sections 3 and 4, Amendments 2 to 4 and 6; "
+                       "ledger 02e sections 10.2a, 10.3, 10.10, 11.0b and 12.8). Every store path the module creates or grants, and the "
                        "shape and exact bytes of every file it generates, for each case's tenant.yaml. Produced by "
                        "tools/render_vectors.py; tests/*.tftest.hcl hold the module equal to it. Synthetic values.",
         "store": {k: STATIC[k] for k in ("secret_rules", "secrets", "parameter_rules", "parameters")},
+        "saas": STATIC["saas"],
+        "gcp_setup_project": STATIC["gcp_setup_project"],
         "promoter_role": STATIC["promoter_role"],
         "setup_roles": STATIC["setup_roles"],
         "rulesets": STATIC["rulesets"],

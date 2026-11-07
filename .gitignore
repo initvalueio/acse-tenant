@@ -7,3 +7,5 @@ __pycache__/
 *.pyc
 examples/setup-repository/terraform/terraform.tfvars
 examples/setup-repository/terraform/backend.*.hcl
+examples/saas-gcp-setup-repository/terraform/terraform.tfvars
+examples/saas-gcp-setup-repository/terraform/backend.*.hcl

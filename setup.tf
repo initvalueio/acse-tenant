@@ -27,8 +27,22 @@
 # it is only assumed later, by the workflow, after the bootstrap has created both. So no depends_on links them, which
 # also keeps the GitHub-side resource out of the pull request's cloud-only plan (-target, SC-5).
 
+# Where the setup credential lives (spec 02e Amendment 6 SA-5):
+#   aws -- the three roles above, in the account that holds the two secrets. Self-hosted, that is cloud.account. In
+#          SaaS mode cloud.account is InitValue's, so the roles go in your own account: the one in
+#          setup_credential_secret_arn, which the AWS provider must be signed in to.
+#   gcp -- no AWS identity here. The environment and the subject template are still created, and setup_oidc_subjects
+#          gives modules/gcp-setup-credential the three subjects to bind in your Google Cloud project.
+
 locals {
-  setup_enabled  = var.setup_credential_secret_arn != null
+  setup_aws     = var.setup_credential_store == "aws" && var.setup_credential_secret_arn != null
+  setup_gcp     = var.setup_credential_store == "gcp"
+  setup_enabled = local.setup_aws || local.setup_gcp # the GitHub side: environment, subject template, subjects
+  # The account that holds the setup roles: cloud.account when self-hosted, the secret's account in SaaS mode.
+  setup_account = local.saas && local.setup_aws ? split(":", var.setup_credential_secret_arn)[4] : local.account
+  # The OIDC provider the setup roles trust. In SaaS mode it is your account's, never created here (Amendment 6 A.4).
+  setup_oidc_provider_arn = local.saas ? "arn:aws:iam::${local.setup_account}:oidc-provider/${local.oidc_host}" : local.oidc_provider_arn
+
   setup_full     = tostring(local.repositories.setup)
   setup_name     = split("/", local.repositories.setup)[1]
   setup_workflow = "${local.setup_full}/.github/workflows/acse-setup-apply.yml"
@@ -38,9 +52,9 @@ locals {
   # created after 2026-07-15 use it by default). DEC-29.
   setup_sub_repo = coalesce(var.setup_oidc_subject_repo, local.setup_full)
 
-  setup_apply_arn = "arn:aws:iam::${local.account}:role/${var.setup_apply_role_name}"
-  setup_check_arn = "arn:aws:iam::${local.account}:role/${var.setup_check_role_name}"
-  setup_plan_arn  = "arn:aws:iam::${local.account}:role/${var.setup_plan_role_name}"
+  setup_apply_arn = "arn:aws:iam::${local.setup_account}:role/${var.setup_apply_role_name}"
+  setup_check_arn = "arn:aws:iam::${local.setup_account}:role/${var.setup_check_role_name}"
+  setup_plan_arn  = "arn:aws:iam::${local.setup_account}:role/${var.setup_plan_role_name}"
 
   setup_apply_subject = !local.setup_enabled ? null : "repo:${local.setup_sub_repo}:environment:${var.setup_apply_environment}:job_workflow_ref:${local.setup_workflow}@refs/heads/${local.setup_default}"
   # A push job with no environment: context is ref:refs/heads/<branch> (GitHub's default-format branch part). AWS can
@@ -48,12 +62,12 @@ locals {
   setup_plan_subject  = !local.setup_enabled ? null : "repo:${local.setup_sub_repo}:ref:refs/heads/${local.setup_default}:job_workflow_ref:${local.setup_workflow}@refs/heads/${local.setup_default}"
   setup_check_subject = !local.setup_enabled ? null : "repo:${local.setup_sub_repo}:pull_request:job_workflow_ref:${local.setup_workflow}@refs/pull/*/merge"
 
-  setup_apply_trust_policy = !local.setup_enabled ? null : jsonencode({
+  setup_apply_trust_policy = !local.setup_aws ? null : jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Sid       = "AcseSetupApplyJobOnly"
       Effect    = "Allow"
-      Principal = { Federated = local.oidc_provider_arn }
+      Principal = { Federated = local.setup_oidc_provider_arn }
       Action    = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
@@ -64,12 +78,12 @@ locals {
     }]
   })
 
-  setup_plan_trust_policy = !local.setup_enabled ? null : jsonencode({
+  setup_plan_trust_policy = !local.setup_aws ? null : jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Sid       = "AcseSetupPostMergePlanJobOnly"
       Effect    = "Allow"
-      Principal = { Federated = local.oidc_provider_arn }
+      Principal = { Federated = local.setup_oidc_provider_arn }
       Action    = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
@@ -80,7 +94,7 @@ locals {
     }]
   })
 
-  setup_plan_credential_policy = !local.setup_enabled ? null : jsonencode({
+  setup_plan_credential_policy = !local.setup_aws ? null : jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
@@ -103,12 +117,12 @@ locals {
 
   # StringLike only for the pull request number; every other character is literal, so any other shape (a job in an
   # environment, a push, another workflow file, the default subject format) is refused: it fails closed.
-  setup_check_trust_policy = !local.setup_enabled ? null : jsonencode({
+  setup_check_trust_policy = !local.setup_aws ? null : jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Sid       = "AcseSetupPullRequestCheckOnly"
       Effect    = "Allow"
-      Principal = { Federated = local.oidc_provider_arn }
+      Principal = { Federated = local.setup_oidc_provider_arn }
       Action    = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = { "${local.oidc_host}:aud" = "sts.amazonaws.com" }
@@ -119,7 +133,7 @@ locals {
 
   setup_credential_readers = concat([local.setup_apply_arn], var.setup_credential_extra_reader_arns)
 
-  setup_credential_policy = !local.setup_enabled ? null : jsonencode({
+  setup_credential_policy = !local.setup_aws ? null : jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
@@ -181,7 +195,7 @@ resource "github_actions_repository_oidc_subject_claim_customization_template" "
 }
 
 resource "aws_iam_role" "setup_apply" {
-  count = local.setup_enabled ? 1 : 0
+  count = local.setup_aws ? 1 : 0
 
   name                 = var.setup_apply_role_name
   description          = "ACSE setup apply (${local.tenant}): acse-setup-apply.yml's apply job on ${local.setup_full}@${local.setup_default}, environment ${var.setup_apply_environment}. The only role that reads the setup credential."
@@ -193,14 +207,14 @@ resource "aws_iam_role" "setup_apply" {
 }
 
 resource "aws_iam_role_policy_attachment" "setup_apply" {
-  for_each = local.setup_enabled ? toset(var.setup_apply_policy_arns) : toset([])
+  for_each = local.setup_aws ? toset(var.setup_apply_policy_arns) : toset([])
 
   role       = aws_iam_role.setup_apply[0].name
   policy_arn = each.value
 }
 
 resource "aws_iam_role" "setup_plan" {
-  count = local.setup_enabled ? 1 : 0
+  count = local.setup_aws ? 1 : 0
 
   name                 = var.setup_plan_role_name
   description          = "ACSE setup post-merge plan (${local.tenant}): acse-setup-apply.yml's plan job on ${local.setup_full}@${local.setup_default}. Reads only the read-only App's key; cannot read the setup credential."
@@ -212,14 +226,14 @@ resource "aws_iam_role" "setup_plan" {
 }
 
 resource "aws_iam_role_policy_attachment" "setup_plan" {
-  for_each = local.setup_enabled ? toset(var.setup_plan_policy_arns) : toset([])
+  for_each = local.setup_aws ? toset(var.setup_plan_policy_arns) : toset([])
 
   role       = aws_iam_role.setup_plan[0].name
   policy_arn = each.value
 }
 
 resource "aws_secretsmanager_secret_policy" "setup_plan_credential" {
-  count = local.setup_enabled ? 1 : 0
+  count = local.setup_aws ? 1 : 0
 
   secret_arn          = var.setup_plan_credential_secret_arn
   policy              = local.setup_plan_credential_policy
@@ -229,7 +243,7 @@ resource "aws_secretsmanager_secret_policy" "setup_plan_credential" {
 }
 
 resource "aws_iam_role" "setup_check" {
-  count = local.setup_enabled ? 1 : 0
+  count = local.setup_aws ? 1 : 0
 
   name                 = var.setup_check_role_name
   description          = "ACSE setup PR check (${local.tenant}): plans the cloud side of pull requests on ${local.setup_full}. Holds no GitHub credential and cannot read the setup credential."
@@ -241,14 +255,14 @@ resource "aws_iam_role" "setup_check" {
 }
 
 resource "aws_iam_role_policy_attachment" "setup_check" {
-  for_each = local.setup_enabled ? toset(var.setup_check_policy_arns) : toset([])
+  for_each = local.setup_aws ? toset(var.setup_check_policy_arns) : toset([])
 
   role       = aws_iam_role.setup_check[0].name
   policy_arn = each.value
 }
 
 resource "aws_secretsmanager_secret_policy" "setup_credential" {
-  count = local.setup_enabled ? 1 : 0
+  count = local.setup_aws ? 1 : 0
 
   secret_arn          = var.setup_credential_secret_arn
   policy              = local.setup_credential_policy

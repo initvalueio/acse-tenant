@@ -1,0 +1,24 @@
+# Synthetic values. A SaaS Outbox tenant whose setup credential is in a dedicated GCP project (spec 02e Amendment 6;
+# Koushik, 2026-11-07): the promoter's App key lives in that project, not in InitValue's namespace. cloud.* names
+# InitValue's runtime account and region.
+version: "1.2"
+tenant: example-saas-outbox
+cloud:
+  provider: aws
+  account: "111122223333"
+  region: ca-central-1
+  namespace: acse/example-saas-outbox
+  workflow_role: arn:aws:iam::111122223333:role/acse-promoter-example-saas-outbox
+repositories:
+  setup: example-org/acse-setup
+  policies: example-org/acse-policies
+  outbox: example-org/acse-outbox
+github:
+  read_app_id: 5200001
+  change_app_id: 5200002
+  change_authorized_scope: org-wide
+outbox:
+  promoter_app_id: 5200003
+  report_url: "https://acse.example.com/api/promoter/v1/reports"
+  report_audience: "acse-promoter:prg-5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b"
+  runtime_pubkey_fingerprint: "sha256:5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c"

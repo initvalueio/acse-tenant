@@ -1,0 +1,38 @@
+# Copy to terraform.tfvars and fill in. Nothing here is secret: every key stays in Secret Manager.
+saas_publish_role_arn = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas"
+
+# A dedicated project: the pool and these keys, nothing else.
+gcp_setup_project              = "example-acse-setup"
+gcp_setup_project_is_dedicated = true
+gcp_workload_identity_provider = "//iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/acse-setup/providers/github"
+
+setup_app = {
+  id                    = 1000002
+  installation_id       = 50000002
+  private_key_secret_id = "acse-setup-app-private-key"
+}
+
+plan_app = {
+  id                    = 1000003
+  installation_id       = 50000003
+  private_key_secret_id = "acse-setup-plan-app-private-key"
+}
+
+acse_app_keys = {
+  read_secret_id   = "acse-read-app-private-key"
+  change_secret_id = "acse-change-app-private-key"
+  version          = "2026-11-07"
+}
+
+default_branches = {
+  setup    = "main"
+  policies = "main"
+}
+
+apply_environment_reviewers = {
+  users = []
+  teams = [1234567]
+}
+
+# Outbox tenants only: the promoter App's key, in the same dedicated project.
+# promoter_key_secret_id = "acse-promoter-app-private-key"

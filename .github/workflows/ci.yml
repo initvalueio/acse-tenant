@@ -35,9 +35,20 @@ jobs:
         run: |
           terraform init -backend=false -input=false
           terraform validate
+      - name: The GCP setup-credential module validates and passes its tests (mock provider)
+        working-directory: modules/gcp-setup-credential
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+          terraform test
+      - name: The SaaS example root (GCP-hosted setup credential) validates
+        working-directory: examples/saas-gcp-setup-repository/terraform
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
 
   static:
-    name: Vectors are current; the template holds no secret or variable (AC-1)
+    name: Vectors are current; the template holds no secret or variable (AC-1); the publish script lints
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -50,3 +61,4 @@ jobs:
       - run: python -m pip install --disable-pip-version-check pyyaml==6.0.2
       - run: python tools/render_vectors.py --check
       - run: python tools/check_template.py
+      - run: shellcheck scripts/saas-publish.sh
