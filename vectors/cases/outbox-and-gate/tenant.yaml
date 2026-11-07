@@ -1,0 +1,50 @@
+# Synthetic values. An Outbox and Direct tenant with the gate's audience set (tenant-config-1.2).
+version: "1.2"
+tenant: tenant-01
+cloud:
+  provider: aws
+  account: "111122223333"
+  region: ca-central-1
+  namespace: acse/tenant-01
+  workflow_role: arn:aws:iam::111122223333:role/acse-promoter
+repositories:
+  setup: example-org/acse-setup
+  policies: example-org/acse-policies
+  outbox: example-org/acse-outbox
+github:
+  read_app_id: 1183420
+  change_app_id: 1183421
+  change_authorized_scope: org-wide
+naming:
+  prefix: ""
+  suffix: ""
+  tail_template: "fix-{case}"
+  missing_token_policy: hold
+delivery:
+  methods: [direct_pr, outbox]
+  default_channel: patch_only
+  default_write_policy: on_request
+  repositories:
+    - repo: example-org/payments-infra
+      channel: direct_pr
+      write_policy: everywhere
+code_sources:
+  audit_identity: { enabled: true }
+  tag_mapping: { enabled: false, tag_key: app_id, mapping_file: mappings/app-to-repo.csv }
+  index: { enabled: true, mode: wrapper_hook, prefix: "s3://example-acse-index/" }
+  tfc: { enabled: true, organization: example-org, url: "https://app.terraform.io", projects: [acse-dev, platform] }
+gate:
+  registered_repositories:
+    - repo: example-org/payments-infra
+    - repo: example-org/network
+      workflow: .github/workflows/plan.yml
+  enforcement: per_repo
+  audience: "acse-gate:gta-7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c"
+  report_url: "https://acse.example.com/api/gate/v1/reports"
+outbox:
+  promoter_app_id: 1183422
+  report_url: "https://acse.example.com/api/promoter/v1/reports"
+  report_audience: "acse-promoter:prg-0123456789abcdef0123456789abcdef"
+  runtime_pubkey_fingerprint: "sha256:1212121212121212121212121212121212121212121212121212121212121212"
+approvals:
+  change_ticket: optional

@@ -1,0 +1,11 @@
+{
+  "gate_config_format_version": ${jsonencode(payload.gate_config_format_version)},
+  "tenant": ${jsonencode(payload.tenant)},
+  "audience": ${jsonencode(payload.audience)},
+  "report_url": ${jsonencode(payload.report_url)},
+  "generated_from": {
+    "repository": ${jsonencode(generated_from.repository)},
+    "commit": ${jsonencode(generated_from.commit)},
+    "tenant_yaml_sha256": ${jsonencode(generated_from.tenant_yaml_sha256)}
+  }
+}
