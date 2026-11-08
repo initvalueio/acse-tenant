@@ -26,7 +26,8 @@ account and GitHub organization:
      changes the subject of every workflow in that repository.
 5. **Two generated files**, both rendered from `tenant.yaml`:
    - `.github/acse-gate.json` in the policies repository (`gate-config-1.0`);
-   - `.github/acse-promote.json` in the outbox repository (`promoter-config-1.0`).
+   - `.github/acse-promote.json` in the outbox repository: `promoter-config-1.0`, or `promoter-config-1.1` when
+     `tenant.yaml` sets `outbox.promoter_key` (tenant-config-1.3), which is then copied into it exactly.
 
    ACSE never proposes either file.
 
@@ -290,6 +291,24 @@ module's outputs:
 - `promoter_workload_identity_provider`, the external_account audience;
 - `promoter_key_secret_name` (`projects/<project>/secrets/<name>`);
 - `promoter_audience`.
+
+The promoter learns where its key is from `.github/acse-promote.json`. Copy the three outputs into `tenant.yaml`
+(tenant-config-1.3), and the module then writes the file as `promoter-config-1.1`:
+
+```yaml
+outbox:
+  promoter_key:
+    store: gcp_secret_manager
+    workload_identity_provider: "//iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/acse-setup/providers/github-promoter"
+    secret_name: projects/example-acse-setup/secrets/acse-promoter-app-private-key
+    audience: acse-promote-gcp
+```
+
+`store: gcp_secret_manager` is accepted only in SaaS mode with `setup_credential_store = gcp`, and the secret must be in
+`gcp_setup_project`. Without `promoter_key` the file stays `promoter-config-1.0` and the plan warns
+(`check.promoter_key_named_in_tenant_yaml`), because the promoter would look for its key in the namespace, where
+there is none. `store: aws_namespace` names the default explicitly (the namespace key, read with
+`cloud.workflow_role`) and also writes 1.1.
 
 Template 1.1.0 of `acse-setup-apply.yml` also issues a token for audience `acse-setup-gcp`, as
 `TF_VAR_acse_gcp_web_identity_token_file`. The apply job then federates twice: to Google Cloud for the keys, and to

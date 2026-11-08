@@ -7,6 +7,18 @@
     "workflow_role": ${jsonencode(payload.cloud.workflow_role)},
     "namespace": ${jsonencode(payload.cloud.namespace)}
   },
+%{ if try(payload.promoter_key, null) != null ~}
+  "promoter_key": {
+%{ if try(payload.promoter_key.store, null) == "gcp_secret_manager" ~}
+    "store": ${jsonencode(try(payload.promoter_key.store, null))},
+    "workload_identity_provider": ${jsonencode(try(payload.promoter_key.workload_identity_provider, null))},
+    "secret_name": ${jsonencode(try(payload.promoter_key.secret_name, null))},
+    "audience": ${jsonencode(try(payload.promoter_key.audience, null))}
+%{ else ~}
+    "store": ${jsonencode(try(payload.promoter_key.store, null))}
+%{ endif ~}
+  },
+%{ endif ~}
   "generated_from": {
     "repository": ${jsonencode(generated_from.repository)},
     "commit": ${jsonencode(generated_from.commit)},

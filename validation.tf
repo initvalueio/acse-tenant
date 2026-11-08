@@ -1,5 +1,5 @@
 # What this module checks in tenant.yaml before it changes anything: the members it depends on, against
-# tenant-config-1.2 and promoter-config-1.0 / gate-config-1.0. Every failure stops the plan. The runtime's validation
+# tenant-config-1.3 and promoter-config-1.0 / 1.1 / gate-config-1.0. Every failure stops the plan. The runtime's validation
 # (lane LR-2, contracts/tooling/acse_tenant_config.py and the governed vectors) remains the full schema check.
 
 # AWS is signed in only where this module creates something in AWS: always when self-hosted; in SaaS mode only when
@@ -28,6 +28,20 @@ locals {
   aws_account_seen = try(data.aws_caller_identity.current[0].account_id, local.aws_account_want)
   aws_region_seen  = try(data.aws_region.current[0].region, local.region)
   saas_role_match  = local.saas ? try(regex("^arn:aws:iam::([0-9]{12}):role/", var.saas_publish_role_arn)[0], "") : ""
+
+  # outbox.promoter_key (tenant-config-1.3; promoter-config-1.1 $defs.promoterKey), checked member for member.
+  promoter_key_members = local.promoter_key_gcp ? ["audience", "secret_name", "store", "workload_identity_provider"] : ["store"]
+  promoter_key_valid = local.promoter_key_raw == null || try(
+    local.promoter_key != null
+    && contains(["aws_namespace", "gcp_secret_manager"], try(local.promoter_key.store, ""))
+    && jsonencode(sort(keys(local.promoter_key))) == jsonencode(local.promoter_key_members)
+    && (!local.promoter_key_gcp || (
+      can(regex("^//iam\\.googleapis\\.com/projects/[0-9]{1,20}/locations/global/workloadIdentityPools/[a-z0-9-]{4,32}/providers/[a-z0-9-]{4,32}$", local.promoter_key.workload_identity_provider))
+      && can(regex("^projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/secrets/[A-Za-z0-9_-]{1,255}$", local.promoter_key.secret_name))
+      && can(regex("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$", local.promoter_key.audience))
+    )),
+    false,
+  )
 }
 
 resource "terraform_data" "tenant_config" {
@@ -76,7 +90,19 @@ resource "terraform_data" "tenant_config" {
     }
     precondition {
       condition     = local.has_outbox == (try(local.config.outbox, null) != null)
-      error_message = "tenant.yaml has an outbox section exactly when repositories.outbox is set (tenant-config-1.2)."
+      error_message = "tenant.yaml has an outbox section exactly when repositories.outbox is set (tenant-config-1.2 and 1.3)."
+    }
+    precondition {
+      condition     = local.promoter_key_valid
+      error_message = "outbox.promoter_key must be {store: aws_namespace} or {store: gcp_secret_manager, workload_identity_provider, secret_name, audience} and nothing else (tenant-config-1.3; promoter-config-1.1). The three gcp members are modules/gcp-setup-credential's outputs promoter_workload_identity_provider, promoter_key_secret_name and promoter_audience, copied exactly."
+    }
+    precondition {
+      condition     = !local.promoter_key_gcp || local.promoter_key_in_gcp
+      error_message = "outbox.promoter_key.store gcp_secret_manager is for SaaS mode with setup_credential_store = gcp only: that is the one configuration in which this module keeps the promoter key out of the namespace and modules/gcp-setup-credential grants acse-promote.yml its secret (DEC-47, DEC-48)."
+    }
+    precondition {
+      condition     = !local.promoter_key_gcp || try(split("/", local.promoter_key.secret_name)[1], "") == var.gcp_setup_project
+      error_message = "outbox.promoter_key.secret_name must be in gcp_setup_project (${coalesce(var.gcp_setup_project, "unset")}): the promoter key lives in the dedicated setup project and nowhere else (DEC-46, DEC-47)."
     }
     precondition {
       condition     = local.read_app_id >= 1 && local.change_app_id >= 1 && floor(local.read_app_id) == local.read_app_id && floor(local.change_app_id) == local.change_app_id

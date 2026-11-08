@@ -88,3 +88,14 @@ check "outbox_oidc_subject_repo_matches_github" {
     error_message = "GitHub reports the outbox repository's OIDC sub prefix as ${try(jsondecode(data.github_rest_api.outbox_sub.body).sub_claim_prefix, "?")}, but the promoter role trusts repo:${local.outbox_sub_repo == null ? "" : local.outbox_sub_repo}. Set outbox_oidc_subject_repo to match, or the promoter cannot assume its role."
   }
 }
+
+# DEC-48: in SaaS mode with a GCP setup project the promoter key is in that project, never in the namespace (DEC-47),
+# so .github/acse-promote.json must tell the promoter so: outbox.promoter_key.store gcp_secret_manager, which makes the
+# file promoter-config-1.1. A warning, never a failure: the values come from modules/gcp-setup-credential's outputs,
+# which exist only after the first apply that creates the promoter's provider, and failing the plan would block it.
+check "promoter_key_named_in_tenant_yaml" {
+  assert {
+    condition     = !local.promoter_key_in_gcp || local.promoter_key_gcp
+    error_message = "The promoter's App key is in the GCP setup project, but tenant.yaml does not set outbox.promoter_key.store: gcp_secret_manager, so .github/acse-promote.json stays promoter-config-1.0 and the promoter looks for its key in the namespace, where there is none. Copy modules/gcp-setup-credential's outputs promoter_workload_identity_provider, promoter_key_secret_name and promoter_audience into outbox.promoter_key (tenant-config-1.3)."
+  }
+}

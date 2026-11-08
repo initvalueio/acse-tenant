@@ -113,7 +113,9 @@ CASE_INPUTS = {
 
 WHY = {
     "outbox-and-gate": "Outbox and Direct, gate audience set: every secret, nine inline settings indexes, both generated "
-                       "files, and both setup roles with the job_workflow_ref subject and a read-only check App (DEC-20).",
+                       "files, and both setup roles with the job_workflow_ref subject and a read-only check App (DEC-20); "
+                       "outbox.promoter_key store aws_namespace, so .github/acse-promote.json is promoter-config-1.1 "
+                       "naming the namespace key, as 1.0 implies.",
     "direct-minimal": "Direct only, no naming, gate or outbox section: no promoter secret, no role, no generated file; "
                       "settings/naming is still published, as {}.",
     "large-split": "500 gate entries and 300 delivery overrides: settings/gate and settings/delivery are indexes "
@@ -121,7 +123,8 @@ WHY = {
     "outbox-prefixed-boundary": "Outbox only, boundary corp-acse-prod, a role under a path, the job_workflow_ref subject, "
                                 "GitHub's immutable subject format (owner@id/name@id) for the setup and outbox repositories "
                                 "and a customer-managed key; a gate list without an audience generates no gate file; "
-                                "'&' in a setting is escaped as \\u0026.",
+                                "'&' in a setting is escaped as \\u0026; no outbox.promoter_key, so .github/acse-promote.json "
+                                "stays promoter-config-1.0.",
     "saas-gcp-setup": "SaaS mode (spec 02e Amendment 6): cloud.* is InitValue's runtime account; no namespace, OIDC "
                       "provider or promoter role is created; settings/* are published write-only through the publish "
                       "role, whose policy and trust are rendered for InitValue's pipeline; the setup credential is in "
@@ -129,7 +132,9 @@ WHY = {
     "saas-gcp-setup-outbox": "SaaS Outbox tenant with a dedicated GCP setup project (Koushik, 2026-11-07): the promoter's "
                              "App key lives in that project, so the namespace has no outbox/promoter/private-key and the "
                              "promoter's AWS read policy (rendered for InitValue's pipeline) grants the three parameters "
-                             "only; promoter_oidc carries what the promoter's WIF provider binds.",
+                             "only; promoter_oidc carries what the promoter's WIF provider binds; outbox.promoter_key names "
+                             "the Secret Manager secret, so .github/acse-promote.json is promoter-config-1.1 with the "
+                             "gcp_secret_manager store.",
 }
 
 
@@ -158,6 +163,17 @@ def gate_file(payload: dict, generated_from: dict) -> str:
     )
 
 
+def promoter_key_block(key: dict | None) -> str:
+    """promoter-config-1.1's promoter_key, members in schema order; empty for 1.0 (no promoter_key)."""
+    if key is None:
+        return ""
+    j = tf_jsonencode
+    members = ["store"] + (["workload_identity_provider", "secret_name", "audience"]
+                           if key["store"] == "gcp_secret_manager" else [])
+    lines = ",\n".join(f'    "{m}": {j(key[m])}' for m in members)
+    return '  "promoter_key": {\n' + lines + "\n  },\n"
+
+
 def promoter_file(payload: dict, generated_from: dict) -> str:
     j = tf_jsonencode
     cloud = payload["cloud"]
@@ -171,6 +187,7 @@ def promoter_file(payload: dict, generated_from: dict) -> str:
         f'    "workflow_role": {j(cloud["workflow_role"])},\n'
         f'    "namespace": {j(cloud["namespace"])}\n'
         "  },\n"
+        + promoter_key_block(payload.get("promoter_key")) +
         '  "generated_from": {\n'
         f'    "repository": {j(generated_from["repository"])},\n'
         f'    "commit": {j(generated_from["commit"])},\n'
@@ -391,11 +408,16 @@ def render_case(name: str) -> dict:
                          "content": gate_file(payload, generated_from),
                          "pull_request_branch": "setup-apply/acse-gate-config-" + hashlib.sha256(tf_jsonencode(payload).encode()).hexdigest()[:12]}
     if has_outbox:
-        payload = {"promoter_config_format_version": "1.0", "tenant": tenant,
+        # promoter-config-1.1 when tenant.yaml sets outbox.promoter_key (tenant-config-1.3), copied exactly; else 1.0.
+        key = (config.get("outbox") or {}).get("promoter_key")
+        payload = {"promoter_config_format_version": "1.0" if key is None else "1.1", "tenant": tenant,
                    "cloud": {"provider": cloud["provider"], "region": region, "workflow_role": cloud["workflow_role"],
                              "namespace": namespace}}
+        if key is not None:
+            payload["promoter_key"] = {str(k): str(v) for k, v in key.items()}
         files["promoter"] = {"repository": repos["outbox"], "branch": inputs["outbox_default_branch"],
-                             "path": ".github/acse-promote.json", "schema": "promoter-config-1.0",
+                             "path": ".github/acse-promote.json",
+                             "schema": "promoter-config-1.0" if key is None else "promoter-config-1.1",
                              "content": promoter_file(payload, generated_from),
                              "pull_request_branch": "setup-apply/acse-promote-config-" + hashlib.sha256(tf_jsonencode(payload).encode()).hexdigest()[:12]}
     expected["generated_files"] = files
@@ -488,7 +510,7 @@ STATIC = {
                    "check": "check_project_roles (default roles/viewer, roles/iam.securityReviewer); reads nothing",
                    "promote": "its own provider (github-promoter, audience acse-promote-gcp) in the same pool; acse-promote.yml on the outbox's default branch (sub and job_workflow_ref); reads exactly the promoter key; no project role"},
         "outputs": "modules/gcp-setup-credential: workload_identity_provider, promoter_workload_identity_provider, promoter_key_secret_name (projects/<project>/secrets/<name>), promoter_audience",
-        "promoter_key": "in SaaS mode the promoter key is in this project and never in InitValue's namespace (SA-6 as amended); promoter template 1.1.0 (core) reads it through WIF",
+        "promoter_key": "in SaaS mode the promoter key is in this project and never in InitValue's namespace (SA-6 as amended); promoter template 1.1.0 (core) reads it through WIF, where tenant.yaml's outbox.promoter_key (store gcp_secret_manager, the three outputs above copied exactly) puts it in .github/acse-promote.json (promoter-config-1.1)",
     },
     "promoter_role": {
         "sub_repo_segment": "outbox_oidc_subject_repo: owner/name or owner@id/name@id (immutable format)",
@@ -530,8 +552,13 @@ STATIC = {
          "when": "gate.audience and gate.report_url are both set",
          "members": "gate_config_format_version, tenant, audience, report_url, generated_from{repository, commit, tenant_yaml_sha256}"},
         {"key": "promoter", "repository": "repositories.outbox", "path": ".github/acse-promote.json", "schema": "promoter-config-1.0",
-         "when": "repositories.outbox is set",
+         "when": "repositories.outbox is set and outbox.promoter_key is not",
          "members": "promoter_config_format_version, tenant, cloud{provider, region, workflow_role, namespace}, generated_from{repository, commit, tenant_yaml_sha256}"},
+        {"key": "promoter", "repository": "repositories.outbox", "path": ".github/acse-promote.json", "schema": "promoter-config-1.1",
+         "when": "repositories.outbox and outbox.promoter_key (tenant-config-1.3) are both set",
+         "members": "promoter_config_format_version, tenant, cloud{provider, region, workflow_role, namespace}, "
+                    "promoter_key{store} (aws_namespace) or promoter_key{store, workload_identity_provider, secret_name, audience} "
+                    "(gcp_secret_manager), copied exactly from outbox.promoter_key, generated_from{repository, commit, tenant_yaml_sha256}"},
     ],
     "generated_file_rules": {
         "bytes": "two-space indent, members in schema order, values as Terraform jsonencode renders them, one trailing line feed",

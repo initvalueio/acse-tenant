@@ -2,7 +2,7 @@
 # (spec 02e T-2). The others say how this module meets the customer's own GitHub organization and AWS account.
 
 variable "tenant_yaml" {
-  description = "The text of config/tenant.yaml (tenant-config-1.0, 1.1 or 1.2), exactly as committed: pass file(\"$${path.root}/../config/tenant.yaml\"). The module parses it, validates what it depends on, and hashes these exact bytes for generated_from.tenant_yaml_sha256."
+  description = "The text of config/tenant.yaml (tenant-config-1.0 to 1.3), exactly as committed: pass file(\"$${path.root}/../config/tenant.yaml\"). The module parses it, validates what it depends on, and hashes these exact bytes for generated_from.tenant_yaml_sha256."
   type        = string
   nullable    = false
 

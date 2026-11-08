@@ -92,9 +92,11 @@ output "acse_tenant" {
     saas                       = module.acse_tenant.saas
     setup_oidc_subjects        = module.acse_tenant.setup_oidc_subjects
     workload_identity_provider = module.gcp_setup_credential.workload_identity_provider
-    # For the outbox's acse-promote.yml (promoter template 1.1.0) and tenant.yaml.
+    # For the outbox's acse-promote.yml (promoter template 1.1.0): copy these three into tenant.yaml's
+    # outbox.promoter_key (store gcp_secret_manager), which makes .github/acse-promote.json promoter-config-1.1.
     promoter_workload_identity_provider = module.gcp_setup_credential.promoter_workload_identity_provider
     promoter_key_secret_name            = module.gcp_setup_credential.promoter_key_secret_name
+    promoter_audience                   = module.gcp_setup_credential.promoter_audience
     rulesets                            = module.acse_tenant.ruleset_ids
     pull_requests                       = module.acse_tenant.generated_file_pull_requests
   }
