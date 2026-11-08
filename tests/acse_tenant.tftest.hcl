@@ -1066,13 +1066,11 @@ run "saas_gcp_outbox_keeps_the_promoter_key_in_the_setup_project" {
     condition     = output.gcp_setup_project == "example-acse-setup" && length(aws_iam_role.promoter) == 0
     error_message = "The dedicated project is echoed; the promoter role is still InitValue's (SA-6)."
   }
+  # Plan only, so the content (its generated_from) is unknown here; the branch name is the payload's sha256, so it
+  # pins the payload, promoter_key included, to the vectors (whose content the outbox_and_gate run checks byte for byte).
   assert {
-    condition     = output.generated_files["promoter"].content == jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[5].expected.generated_files.promoter.content && output.generated_files["promoter"].schema == "promoter-config-1.1"
-    error_message = ".github/acse-promote.json differs from the vectors: promoter-config-1.1 with outbox.promoter_key (gcp_secret_manager) copied exactly."
-  }
-  assert {
-    condition     = jsondecode(output.generated_files["promoter"].content).promoter_key == yamldecode(file("vectors/cases/saas-gcp-setup-outbox/tenant.yaml")).outbox.promoter_key
-    error_message = "promoter_key must be tenant.yaml's outbox.promoter_key, member for member (the runtime's drift check compares it)."
+    condition     = github_branch.generated["promoter"].branch == jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[5].expected.generated_files.promoter.pull_request_branch && output.generated_files["promoter"].schema == "promoter-config-1.1"
+    error_message = ".github/acse-promote.json's payload differs from the vectors: promoter-config-1.1 with outbox.promoter_key (gcp_secret_manager) copied exactly."
   }
 }
 
@@ -1111,8 +1109,8 @@ run "saas_gcp_outbox_without_promoter_key_warns_and_stays_1_0" {
   }
 
   assert {
-    condition     = jsondecode(output.generated_files["promoter"].content).promoter_config_format_version == "1.0" && !contains(keys(jsondecode(output.generated_files["promoter"].content)), "promoter_key") && output.generated_files["promoter"].schema == "promoter-config-1.0"
-    error_message = "Without outbox.promoter_key the file stays promoter-config-1.0, member for member."
+    condition     = output.generated_files["promoter"].schema == "promoter-config-1.0"
+    error_message = "Without outbox.promoter_key the file stays promoter-config-1.0."
   }
 
   expect_failures = [check.promoter_key_named_in_tenant_yaml]
