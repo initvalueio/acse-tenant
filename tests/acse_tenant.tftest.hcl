@@ -113,8 +113,8 @@ run "outbox_and_gate_pull_request_mode" {
     error_message = ".github/acse-gate.json differs from the vectors."
   }
   assert {
-    condition     = output.generated_files["promoter"].content == jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[2].expected.generated_files.promoter.content
-    error_message = ".github/acse-promote.json differs from the vectors."
+    condition     = output.generated_files["promoter"].content == jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[2].expected.generated_files.promoter.content && output.generated_files["promoter"].schema == "promoter-config-1.1"
+    error_message = ".github/acse-promote.json differs from the vectors (promoter-config-1.1, store aws_namespace)."
   }
   assert {
     condition     = length(github_repository_pull_request.generated) == 2 && length(github_repository_file.direct) == 0
@@ -1066,6 +1066,12 @@ run "saas_gcp_outbox_keeps_the_promoter_key_in_the_setup_project" {
     condition     = output.gcp_setup_project == "example-acse-setup" && length(aws_iam_role.promoter) == 0
     error_message = "The dedicated project is echoed; the promoter role is still InitValue's (SA-6)."
   }
+  # Plan only, so the content (its generated_from) is unknown here; the branch name is the payload's sha256, so it
+  # pins the payload, promoter_key included, to the vectors (whose content the outbox_and_gate run checks byte for byte).
+  assert {
+    condition     = github_branch.generated["promoter"].branch == jsondecode(file("vectors/acse-tenant-vectors-1.0.json")).cases[5].expected.generated_files.promoter.pull_request_branch && output.generated_files["promoter"].schema == "promoter-config-1.1"
+    error_message = ".github/acse-promote.json's payload differs from the vectors: promoter-config-1.1 with outbox.promoter_key (gcp_secret_manager) copied exactly."
+  }
 }
 
 run "refuses_a_gcp_store_without_a_dedicated_project" {
@@ -1079,6 +1085,113 @@ run "refuses_a_gcp_store_without_a_dedicated_project" {
     setup_default_branch              = "main"
     setup_apply_environment_reviewers = { users = [1], teams = [] }
     saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas"
+  }
+
+  expect_failures = [terraform_data.tenant_config]
+}
+
+# -- promoter-config-1.1: outbox.promoter_key (tenant-config-1.3; DEC-48) ------------------------------------------
+
+run "saas_gcp_outbox_without_promoter_key_warns_and_stays_1_0" {
+  command   = plan
+  state_key = "saas_gcp_outbox_without_promoter_key_warns_and_stays_1_0" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = replace(file("vectors/cases/saas-gcp-setup-outbox/tenant.yaml"), "/  promoter_key:[\\s\\S]*$/", "")
+    setup_commit                      = "5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de"
+    policies_default_branch           = "main"
+    outbox_default_branch             = "main"
+    setup_credential_store            = "gcp"
+    gcp_setup_project                 = "example-acse-setup"
+    setup_default_branch              = "main"
+    setup_apply_environment_reviewers = { users = [], teams = [1234567] }
+    saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas-outbox"
+  }
+
+  assert {
+    condition     = output.generated_files["promoter"].schema == "promoter-config-1.0"
+    error_message = "Without outbox.promoter_key the file stays promoter-config-1.0."
+  }
+
+  expect_failures = [check.promoter_key_named_in_tenant_yaml]
+}
+
+run "refuses_a_promoter_key_with_another_member" {
+  command   = plan
+  state_key = "refuses_a_promoter_key_with_another_member" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = replace(file("vectors/cases/saas-gcp-setup-outbox/tenant.yaml"), "    audience: acse-promote-gcp\n", "    audience: acse-promote-gcp\n    region: global\n")
+    setup_commit                      = "5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de"
+    policies_default_branch           = "main"
+    outbox_default_branch             = "main"
+    setup_credential_store            = "gcp"
+    gcp_setup_project                 = "example-acse-setup"
+    setup_default_branch              = "main"
+    setup_apply_environment_reviewers = { users = [], teams = [1234567] }
+    saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas-outbox"
+  }
+
+  expect_failures = [terraform_data.tenant_config]
+}
+
+run "refuses_a_gcp_promoter_key_without_its_members" {
+  command   = plan
+  state_key = "refuses_a_gcp_promoter_key_without_its_members" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = replace(file("vectors/cases/saas-gcp-setup-outbox/tenant.yaml"), "    audience: acse-promote-gcp\n", "")
+    setup_commit                      = "5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de"
+    policies_default_branch           = "main"
+    outbox_default_branch             = "main"
+    setup_credential_store            = "gcp"
+    gcp_setup_project                 = "example-acse-setup"
+    setup_default_branch              = "main"
+    setup_apply_environment_reviewers = { users = [], teams = [1234567] }
+    saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas-outbox"
+  }
+
+  expect_failures = [terraform_data.tenant_config]
+}
+
+run "refuses_a_promoter_key_secret_outside_the_setup_project" {
+  command   = plan
+  state_key = "refuses_a_promoter_key_secret_outside_the_setup_project" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = replace(file("vectors/cases/saas-gcp-setup-outbox/tenant.yaml"), "projects/example-acse-setup/secrets/", "projects/example-other-project/secrets/")
+    setup_commit                      = "5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de"
+    policies_default_branch           = "main"
+    outbox_default_branch             = "main"
+    setup_credential_store            = "gcp"
+    gcp_setup_project                 = "example-acse-setup"
+    setup_default_branch              = "main"
+    setup_apply_environment_reviewers = { users = [], teams = [1234567] }
+    saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-example-saas-outbox"
+  }
+
+  expect_failures = [terraform_data.tenant_config]
+}
+
+run "refuses_a_gcp_promoter_key_with_an_aws_setup_credential" {
+  command   = plan
+  state_key = "refuses_a_gcp_promoter_key_with_an_aws_setup_credential" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml                       = replace(file("vectors/cases/outbox-and-gate/tenant.yaml"), "    store: aws_namespace\n", "    store: gcp_secret_manager\n    workload_identity_provider: \"//iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/acse-setup/providers/github-promoter\"\n    secret_name: projects/example-acse-setup/secrets/acse-promoter-app-private-key\n    audience: acse-promote-gcp\n")
+    setup_commit                      = "566a44a3b3bcd2b692af3477a4bd1d05ae1872ac"
+    policies_default_branch           = "main"
+    outbox_default_branch             = "main"
+    setup_default_branch              = "main"
+    setup_credential_secret_arn       = "arn:aws:secretsmanager:ca-central-1:444455556666:secret:platform/acse-setup-app-AbCdEf"
+    setup_plan_credential_secret_arn  = "arn:aws:secretsmanager:ca-central-1:444455556666:secret:platform/acse-setup-plan-app-MnOpQr"
+    setup_apply_environment_reviewers = { users = [7000001], teams = [] }
+    saas_publish_role_arn             = "arn:aws:iam::111122223333:role/acse-saas-publish-tenant-01"
+  }
+
+  override_data {
+    target = data.aws_caller_identity.current
+    values = { account_id = "444455556666" }
   }
 
   expect_failures = [terraform_data.tenant_config]

@@ -134,7 +134,7 @@
       "promote": "its own provider (github-promoter, audience acse-promote-gcp) in the same pool; acse-promote.yml on the outbox's default branch (sub and job_workflow_ref); reads exactly the promoter key; no project role"
     },
     "outputs": "modules/gcp-setup-credential: workload_identity_provider, promoter_workload_identity_provider, promoter_key_secret_name (projects/<project>/secrets/<name>), promoter_audience",
-    "promoter_key": "in SaaS mode the promoter key is in this project and never in InitValue's namespace (SA-6 as amended); promoter template 1.1.0 (core) reads it through WIF"
+    "promoter_key": "in SaaS mode the promoter key is in this project and never in InitValue's namespace (SA-6 as amended); promoter template 1.1.0 (core) reads it through WIF, where tenant.yaml's outbox.promoter_key (store gcp_secret_manager, the three outputs above copied exactly) puts it in .github/acse-promote.json (promoter-config-1.1)"
   },
   "promoter_role": {
     "sub_repo_segment": "outbox_oidc_subject_repo: owner/name or owner@id/name@id (immutable format)",
@@ -277,8 +277,16 @@
       "repository": "repositories.outbox",
       "path": ".github/acse-promote.json",
       "schema": "promoter-config-1.0",
-      "when": "repositories.outbox is set",
+      "when": "repositories.outbox is set and outbox.promoter_key is not",
       "members": "promoter_config_format_version, tenant, cloud{provider, region, workflow_role, namespace}, generated_from{repository, commit, tenant_yaml_sha256}"
+    },
+    {
+      "key": "promoter",
+      "repository": "repositories.outbox",
+      "path": ".github/acse-promote.json",
+      "schema": "promoter-config-1.1",
+      "when": "repositories.outbox and outbox.promoter_key (tenant-config-1.3) are both set",
+      "members": "promoter_config_format_version, tenant, cloud{provider, region, workflow_role, namespace}, promoter_key{store} (aws_namespace) or promoter_key{store, workload_identity_provider, secret_name, audience} (gcp_secret_manager), copied exactly from outbox.promoter_key, generated_from{repository, commit, tenant_yaml_sha256}"
     }
   ],
   "cases": [
@@ -435,9 +443,9 @@
     },
     {
       "name": "outbox-and-gate",
-      "why": "Outbox and Direct, gate audience set: every secret, nine inline settings indexes, both generated files, and both setup roles with the job_workflow_ref subject and a read-only check App (DEC-20).",
+      "why": "Outbox and Direct, gate audience set: every secret, nine inline settings indexes, both generated files, and both setup roles with the job_workflow_ref subject and a read-only check App (DEC-20); outbox.promoter_key store aws_namespace, so .github/acse-promote.json is promoter-config-1.1 naming the namespace key, as 1.0 implies.",
       "tenant_yaml_path": "vectors/cases/outbox-and-gate/tenant.yaml",
-      "tenant_yaml": "# Synthetic values. An Outbox and Direct tenant with the gate's audience set (tenant-config-1.2).\nversion: \"1.2\"\ntenant: tenant-01\ncloud:\n  provider: aws\n  account: \"111122223333\"\n  region: ca-central-1\n  namespace: acse/tenant-01\n  workflow_role: arn:aws:iam::111122223333:role/acse-promoter\nrepositories:\n  setup: example-org/acse-setup\n  policies: example-org/acse-policies\n  outbox: example-org/acse-outbox\ngithub:\n  read_app_id: 1183420\n  change_app_id: 1183421\n  change_authorized_scope: org-wide\nnaming:\n  prefix: \"\"\n  suffix: \"\"\n  tail_template: \"fix-{case}\"\n  missing_token_policy: hold\ndelivery:\n  methods: [direct_pr, outbox]\n  default_channel: patch_only\n  default_write_policy: on_request\n  repositories:\n    - repo: example-org/payments-infra\n      channel: direct_pr\n      write_policy: everywhere\ncode_sources:\n  audit_identity: { enabled: true }\n  tag_mapping: { enabled: false, tag_key: app_id, mapping_file: mappings/app-to-repo.csv }\n  index: { enabled: true, mode: wrapper_hook, prefix: \"s3://example-acse-index/\" }\n  tfc: { enabled: true, organization: example-org, url: \"https://app.terraform.io\", projects: [acse-dev, platform] }\ngate:\n  registered_repositories:\n    - repo: example-org/payments-infra\n    - repo: example-org/network\n      workflow: .github/workflows/plan.yml\n  enforcement: per_repo\n  audience: \"acse-gate:gta-7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c\"\n  report_url: \"https://acse.example.com/api/gate/v1/reports\"\noutbox:\n  promoter_app_id: 1183422\n  report_url: \"https://acse.example.com/api/promoter/v1/reports\"\n  report_audience: \"acse-promoter:prg-0123456789abcdef0123456789abcdef\"\n  runtime_pubkey_fingerprint: \"sha256:1212121212121212121212121212121212121212121212121212121212121212\"\napprovals:\n  change_ticket: optional\n",
+      "tenant_yaml": "# Synthetic values. An Outbox and Direct tenant with the gate's audience set and the promoter key in the namespace,\n# named explicitly (tenant-config-1.3).\nversion: \"1.3\"\ntenant: tenant-01\ncloud:\n  provider: aws\n  account: \"111122223333\"\n  region: ca-central-1\n  namespace: acse/tenant-01\n  workflow_role: arn:aws:iam::111122223333:role/acse-promoter\nrepositories:\n  setup: example-org/acse-setup\n  policies: example-org/acse-policies\n  outbox: example-org/acse-outbox\ngithub:\n  read_app_id: 1183420\n  change_app_id: 1183421\n  change_authorized_scope: org-wide\nnaming:\n  prefix: \"\"\n  suffix: \"\"\n  tail_template: \"fix-{case}\"\n  missing_token_policy: hold\ndelivery:\n  methods: [direct_pr, outbox]\n  default_channel: patch_only\n  default_write_policy: on_request\n  repositories:\n    - repo: example-org/payments-infra\n      channel: direct_pr\n      write_policy: everywhere\ncode_sources:\n  audit_identity: { enabled: true }\n  tag_mapping: { enabled: false, tag_key: app_id, mapping_file: mappings/app-to-repo.csv }\n  index: { enabled: true, mode: wrapper_hook, prefix: \"s3://example-acse-index/\" }\n  tfc: { enabled: true, organization: example-org, url: \"https://app.terraform.io\", projects: [acse-dev, platform] }\ngate:\n  registered_repositories:\n    - repo: example-org/payments-infra\n    - repo: example-org/network\n      workflow: .github/workflows/plan.yml\n  enforcement: per_repo\n  audience: \"acse-gate:gta-7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c\"\n  report_url: \"https://acse.example.com/api/gate/v1/reports\"\noutbox:\n  promoter_app_id: 1183422\n  report_url: \"https://acse.example.com/api/promoter/v1/reports\"\n  report_audience: \"acse-promoter:prg-0123456789abcdef0123456789abcdef\"\n  runtime_pubkey_fingerprint: \"sha256:1212121212121212121212121212121212121212121212121212121212121212\"\n  promoter_key:\n    store: aws_namespace\napprovals:\n  change_ticket: optional\n",
       "module_inputs": {
         "setup_commit": "566a44a3b3bcd2b692af3477a4bd1d05ae1872ac",
         "outbox_default_branch": "main",
@@ -460,7 +468,7 @@
         }
       },
       "expected": {
-        "tenant_yaml_sha256": "sha256:4651e1e8355eb98635ebd605ef1859362975a8511554cb0cd33577798e933cf7",
+        "tenant_yaml_sha256": "sha256:05adaee18eef1b7aa004b7cddb053abe1a079afd723981e60f30f29c34342460",
         "namespace": "acse/tenant-01",
         "boundary": "acse",
         "branch_ruleset_exclude": "refs/heads/acse/**",
@@ -494,7 +502,7 @@
           "gate": "{\"audience\":\"acse-gate:gta-7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c\",\"enforcement\":\"per_repo\",\"registered_repositories\":[{\"repo\":\"example-org/payments-infra\"},{\"repo\":\"example-org/network\",\"workflow\":\".github/workflows/plan.yml\"}],\"report_url\":\"https://acse.example.com/api/gate/v1/reports\"}",
           "github": "{\"change_app_id\":1183421,\"change_authorized_scope\":\"org-wide\",\"read_app_id\":1183420}",
           "naming": "{\"missing_token_policy\":\"hold\",\"prefix\":\"\",\"suffix\":\"\",\"tail_template\":\"fix-{case}\"}",
-          "outbox": "{\"promoter_app_id\":1183422,\"report_audience\":\"acse-promoter:prg-0123456789abcdef0123456789abcdef\",\"report_url\":\"https://acse.example.com/api/promoter/v1/reports\",\"runtime_pubkey_fingerprint\":\"sha256:1212121212121212121212121212121212121212121212121212121212121212\"}",
+          "outbox": "{\"promoter_app_id\":1183422,\"promoter_key\":{\"store\":\"aws_namespace\"},\"report_audience\":\"acse-promoter:prg-0123456789abcdef0123456789abcdef\",\"report_url\":\"https://acse.example.com/api/promoter/v1/reports\",\"runtime_pubkey_fingerprint\":\"sha256:1212121212121212121212121212121212121212121212121212121212121212\"}",
           "repositories": "{\"outbox\":\"example-org/acse-outbox\",\"policies\":\"example-org/acse-policies\",\"setup\":\"example-org/acse-setup\"}"
         },
         "settings_index_values": {
@@ -505,7 +513,7 @@
           "gate": "{\"bytes\":283,\"commit\":\"566a44a3b3bcd2b692af3477a4bd1d05ae1872ac\",\"inline\":{\"audience\":\"acse-gate:gta-7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c\",\"enforcement\":\"per_repo\",\"registered_repositories\":[{\"repo\":\"example-org/payments-infra\"},{\"repo\":\"example-org/network\",\"workflow\":\".github/workflows/plan.yml\"}],\"report_url\":\"https://acse.example.com/api/gate/v1/reports\"},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"gate\",\"sha256\":\"sha256:a5b6cd22113dfa35cb4fe61a95ce5bc513d6bfffa6c879f5a53f89b2e376df06\"}",
           "github": "{\"bytes\":84,\"commit\":\"566a44a3b3bcd2b692af3477a4bd1d05ae1872ac\",\"inline\":{\"change_app_id\":1183421,\"change_authorized_scope\":\"org-wide\",\"read_app_id\":1183420},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"github\",\"sha256\":\"sha256:f02a458e7ef27993fb0451014657fd505480be912b8775a886f95f2f7f412a1c\"}",
           "naming": "{\"bytes\":84,\"commit\":\"566a44a3b3bcd2b692af3477a4bd1d05ae1872ac\",\"inline\":{\"missing_token_policy\":\"hold\",\"prefix\":\"\",\"suffix\":\"\",\"tail_template\":\"fix-{case}\"},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"naming\",\"sha256\":\"sha256:13307dfe21a3c293b6b371b2404abead79280be3e3892bc9e9917bc4e18693df\"}",
-          "outbox": "{\"bytes\":265,\"commit\":\"566a44a3b3bcd2b692af3477a4bd1d05ae1872ac\",\"inline\":{\"promoter_app_id\":1183422,\"report_audience\":\"acse-promoter:prg-0123456789abcdef0123456789abcdef\",\"report_url\":\"https://acse.example.com/api/promoter/v1/reports\",\"runtime_pubkey_fingerprint\":\"sha256:1212121212121212121212121212121212121212121212121212121212121212\"},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"outbox\",\"sha256\":\"sha256:263569e3e77ad21fee904c4794100a3ce0917d1c52ec0b199d234d2e8b2dc2d9\"}",
+          "outbox": "{\"bytes\":306,\"commit\":\"566a44a3b3bcd2b692af3477a4bd1d05ae1872ac\",\"inline\":{\"promoter_app_id\":1183422,\"promoter_key\":{\"store\":\"aws_namespace\"},\"report_audience\":\"acse-promoter:prg-0123456789abcdef0123456789abcdef\",\"report_url\":\"https://acse.example.com/api/promoter/v1/reports\",\"runtime_pubkey_fingerprint\":\"sha256:1212121212121212121212121212121212121212121212121212121212121212\"},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"outbox\",\"sha256\":\"sha256:f308d0fb760e0e0be80229d7ef79a5dffeca0c8cc52b7a04b3865ae42f7bb77d\"}",
           "repositories": "{\"bytes\":108,\"commit\":\"566a44a3b3bcd2b692af3477a4bd1d05ae1872ac\",\"inline\":{\"outbox\":\"example-org/acse-outbox\",\"policies\":\"example-org/acse-policies\",\"setup\":\"example-org/acse-setup\"},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"repositories\",\"sha256\":\"sha256:06c27804cefabc7321ecb38201d185683d34e28187b6bd8c2384367811139e9e\"}"
         },
         "settings_part_names": {},
@@ -707,23 +715,23 @@
             "branch": "main",
             "path": ".github/acse-gate.json",
             "schema": "gate-config-1.0",
-            "content": "{\n  \"gate_config_format_version\": \"1.0\",\n  \"tenant\": \"tenant-01\",\n  \"audience\": \"acse-gate:gta-7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c\",\n  \"report_url\": \"https://acse.example.com/api/gate/v1/reports\",\n  \"generated_from\": {\n    \"repository\": \"example-org/acse-setup\",\n    \"commit\": \"566a44a3b3bcd2b692af3477a4bd1d05ae1872ac\",\n    \"tenant_yaml_sha256\": \"sha256:4651e1e8355eb98635ebd605ef1859362975a8511554cb0cd33577798e933cf7\"\n  }\n}\n",
+            "content": "{\n  \"gate_config_format_version\": \"1.0\",\n  \"tenant\": \"tenant-01\",\n  \"audience\": \"acse-gate:gta-7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c\",\n  \"report_url\": \"https://acse.example.com/api/gate/v1/reports\",\n  \"generated_from\": {\n    \"repository\": \"example-org/acse-setup\",\n    \"commit\": \"566a44a3b3bcd2b692af3477a4bd1d05ae1872ac\",\n    \"tenant_yaml_sha256\": \"sha256:05adaee18eef1b7aa004b7cddb053abe1a079afd723981e60f30f29c34342460\"\n  }\n}\n",
             "pull_request_branch": "setup-apply/acse-gate-config-954465320bf5"
           },
           "promoter": {
             "repository": "example-org/acse-outbox",
             "branch": "main",
             "path": ".github/acse-promote.json",
-            "schema": "promoter-config-1.0",
-            "content": "{\n  \"promoter_config_format_version\": \"1.0\",\n  \"tenant\": \"tenant-01\",\n  \"cloud\": {\n    \"provider\": \"aws\",\n    \"region\": \"ca-central-1\",\n    \"workflow_role\": \"arn:aws:iam::111122223333:role/acse-promoter\",\n    \"namespace\": \"acse/tenant-01\"\n  },\n  \"generated_from\": {\n    \"repository\": \"example-org/acse-setup\",\n    \"commit\": \"566a44a3b3bcd2b692af3477a4bd1d05ae1872ac\",\n    \"tenant_yaml_sha256\": \"sha256:4651e1e8355eb98635ebd605ef1859362975a8511554cb0cd33577798e933cf7\"\n  }\n}\n",
-            "pull_request_branch": "setup-apply/acse-promote-config-57cfa1b10346"
+            "schema": "promoter-config-1.1",
+            "content": "{\n  \"promoter_config_format_version\": \"1.1\",\n  \"tenant\": \"tenant-01\",\n  \"cloud\": {\n    \"provider\": \"aws\",\n    \"region\": \"ca-central-1\",\n    \"workflow_role\": \"arn:aws:iam::111122223333:role/acse-promoter\",\n    \"namespace\": \"acse/tenant-01\"\n  },\n  \"promoter_key\": {\n    \"store\": \"aws_namespace\"\n  },\n  \"generated_from\": {\n    \"repository\": \"example-org/acse-setup\",\n    \"commit\": \"566a44a3b3bcd2b692af3477a4bd1d05ae1872ac\",\n    \"tenant_yaml_sha256\": \"sha256:05adaee18eef1b7aa004b7cddb053abe1a079afd723981e60f30f29c34342460\"\n  }\n}\n",
+            "pull_request_branch": "setup-apply/acse-promote-config-00db1630a351"
           }
         }
       }
     },
     {
       "name": "outbox-prefixed-boundary",
-      "why": "Outbox only, boundary corp-acse-prod, a role under a path, the job_workflow_ref subject, GitHub's immutable subject format (owner@id/name@id) for the setup and outbox repositories and a customer-managed key; a gate list without an audience generates no gate file; '&' in a setting is escaped as \\u0026.",
+      "why": "Outbox only, boundary corp-acse-prod, a role under a path, the job_workflow_ref subject, GitHub's immutable subject format (owner@id/name@id) for the setup and outbox repositories and a customer-managed key; a gate list without an audience generates no gate file; '&' in a setting is escaped as \\u0026; no outbox.promoter_key, so .github/acse-promote.json stays promoter-config-1.0.",
       "tenant_yaml_path": "vectors/cases/outbox-prefixed-boundary/tenant.yaml",
       "tenant_yaml": "# Synthetic values. An Outbox-only tenant with a prefixed and suffixed boundary, a role under a path, a gate list\n# but no audience yet (so no .github/acse-gate.json), and a report audience holding characters jsonencode escapes.\ntenant: globex-eu\ncloud:\n  provider: aws\n  account: \"444455556666\"\n  region: eu-west-1\n  namespace: acse/globex-eu\n  workflow_role: arn:aws:iam::444455556666:role/acse/acse-promoter-globex\nrepositories:\n  setup: globex/platform-acse-setup\n  policies: globex/platform-acse-policies\n  outbox: globex/platform-acse-outbox\ngithub:\n  read_app_id: 3100001\n  change_app_id: 3100002\n  change_authorized_scope: outbox-only\nnaming:\n  prefix: \"corp-\"\n  suffix: \"-prod\"\n  missing_token_policy:\n    class: hold\n    incident: placeholder\ndelivery:\n  methods: [outbox]\n  default_channel: outbox\n  default_write_policy: on_request\ngate:\n  registered_repositories:\n    - repo: globex/network\noutbox:\n  promoter_app_id: 3100003\n  report_url: \"https://acse.example.com/api/promoter/v1/reports?tenant=globex&kind=heartbeat\"\n  report_audience: \"acse-promoter:prg-fedcba9876543210fedcba9876543210\"\n  runtime_pubkey_fingerprint: \"sha256:3434343434343434343434343434343434343434343434343434343434343434\"\n  runtime_pubkey_next_fingerprint: \"sha256:5656565656565656565656565656565656565656565656565656565656565656\"\n",
       "module_inputs": {
@@ -1156,9 +1164,9 @@
     },
     {
       "name": "saas-gcp-setup-outbox",
-      "why": "SaaS Outbox tenant with a dedicated GCP setup project (Koushik, 2026-11-07): the promoter's App key lives in that project, so the namespace has no outbox/promoter/private-key and the promoter's AWS read policy (rendered for InitValue's pipeline) grants the three parameters only; promoter_oidc carries what the promoter's WIF provider binds.",
+      "why": "SaaS Outbox tenant with a dedicated GCP setup project (Koushik, 2026-11-07): the promoter's App key lives in that project, so the namespace has no outbox/promoter/private-key and the promoter's AWS read policy (rendered for InitValue's pipeline) grants the three parameters only; promoter_oidc carries what the promoter's WIF provider binds; outbox.promoter_key names the Secret Manager secret, so .github/acse-promote.json is promoter-config-1.1 with the gcp_secret_manager store.",
       "tenant_yaml_path": "vectors/cases/saas-gcp-setup-outbox/tenant.yaml",
-      "tenant_yaml": "# Synthetic values. A SaaS Outbox tenant whose setup credential is in a dedicated GCP project (spec 02e Amendment 6;\n# Koushik, 2026-11-07): the promoter's App key lives in that project, not in InitValue's namespace. cloud.* names\n# InitValue's runtime account and region.\nversion: \"1.2\"\ntenant: example-saas-outbox\ncloud:\n  provider: aws\n  account: \"111122223333\"\n  region: ca-central-1\n  namespace: acse/example-saas-outbox\n  workflow_role: arn:aws:iam::111122223333:role/acse-promoter-example-saas-outbox\nrepositories:\n  setup: example-org/acse-setup\n  policies: example-org/acse-policies\n  outbox: example-org/acse-outbox\ngithub:\n  read_app_id: 5200001\n  change_app_id: 5200002\n  change_authorized_scope: org-wide\noutbox:\n  promoter_app_id: 5200003\n  report_url: \"https://acse.example.com/api/promoter/v1/reports\"\n  report_audience: \"acse-promoter:prg-5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b\"\n  runtime_pubkey_fingerprint: \"sha256:5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c\"\n",
+      "tenant_yaml": "# Synthetic values. A SaaS Outbox tenant whose setup credential is in a dedicated GCP project (spec 02e Amendment 6;\n# Koushik, 2026-11-07): the promoter's App key lives in that project, not in InitValue's namespace. cloud.* names\n# InitValue's runtime account and region. outbox.promoter_key copies modules/gcp-setup-credential's promoter outputs\n# (tenant-config-1.3).\nversion: \"1.3\"\ntenant: example-saas-outbox\ncloud:\n  provider: aws\n  account: \"111122223333\"\n  region: ca-central-1\n  namespace: acse/example-saas-outbox\n  workflow_role: arn:aws:iam::111122223333:role/acse-promoter-example-saas-outbox\nrepositories:\n  setup: example-org/acse-setup\n  policies: example-org/acse-policies\n  outbox: example-org/acse-outbox\ngithub:\n  read_app_id: 5200001\n  change_app_id: 5200002\n  change_authorized_scope: org-wide\noutbox:\n  promoter_app_id: 5200003\n  report_url: \"https://acse.example.com/api/promoter/v1/reports\"\n  report_audience: \"acse-promoter:prg-5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b\"\n  runtime_pubkey_fingerprint: \"sha256:5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c\"\n  promoter_key:\n    store: gcp_secret_manager\n    workload_identity_provider: \"//iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/acse-setup/providers/github-promoter\"\n    secret_name: projects/example-acse-setup/secrets/acse-promoter-app-private-key\n    audience: acse-promote-gcp\n",
       "module_inputs": {
         "setup_commit": "5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de",
         "outbox_default_branch": "main",
@@ -1182,7 +1190,7 @@
         "gcp_setup_project": "example-acse-setup"
       },
       "expected": {
-        "tenant_yaml_sha256": "sha256:8c1a49cdb1348ce041a55dcaa83468111b1f0ae0e2f6fec4a62e0d54264cfa4a",
+        "tenant_yaml_sha256": "sha256:ce3706687eacc7d800735a786820a0fe94f6830ee1f22e032ec2031a7e73379b",
         "namespace": "acse/example-saas-outbox",
         "boundary": "acse",
         "branch_ruleset_exclude": "refs/heads/acse/**",
@@ -1207,14 +1215,14 @@
           "cloud": "{\"account\":\"111122223333\",\"namespace\":\"acse/example-saas-outbox\",\"provider\":\"aws\",\"region\":\"ca-central-1\",\"workflow_role\":\"arn:aws:iam::111122223333:role/acse-promoter-example-saas-outbox\"}",
           "github": "{\"change_app_id\":5200002,\"change_authorized_scope\":\"org-wide\",\"read_app_id\":5200001}",
           "naming": "{}",
-          "outbox": "{\"promoter_app_id\":5200003,\"report_audience\":\"acse-promoter:prg-5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b\",\"report_url\":\"https://acse.example.com/api/promoter/v1/reports\",\"runtime_pubkey_fingerprint\":\"sha256:5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c\"}",
+          "outbox": "{\"promoter_app_id\":5200003,\"promoter_key\":{\"audience\":\"acse-promote-gcp\",\"secret_name\":\"projects/example-acse-setup/secrets/acse-promoter-app-private-key\",\"store\":\"gcp_secret_manager\",\"workload_identity_provider\":\"//iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/acse-setup/providers/github-promoter\"},\"report_audience\":\"acse-promoter:prg-5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b\",\"report_url\":\"https://acse.example.com/api/promoter/v1/reports\",\"runtime_pubkey_fingerprint\":\"sha256:5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c\"}",
           "repositories": "{\"outbox\":\"example-org/acse-outbox\",\"policies\":\"example-org/acse-policies\",\"setup\":\"example-org/acse-setup\"}"
         },
         "settings_index_values": {
           "cloud": "{\"bytes\":189,\"commit\":\"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\"inline\":{\"account\":\"111122223333\",\"namespace\":\"acse/example-saas-outbox\",\"provider\":\"aws\",\"region\":\"ca-central-1\",\"workflow_role\":\"arn:aws:iam::111122223333:role/acse-promoter-example-saas-outbox\"},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"cloud\",\"sha256\":\"sha256:d6557ff51bf8265545c55ad550b7d309279ba2212debfabbbf8e01ab52265b27\"}",
           "github": "{\"bytes\":84,\"commit\":\"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\"inline\":{\"change_app_id\":5200002,\"change_authorized_scope\":\"org-wide\",\"read_app_id\":5200001},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"github\",\"sha256\":\"sha256:8c8bc55d69ad5bb8ad809bbedaea96f890c27598d7a0b3b5c1548cccdb4ed751\"}",
           "naming": "{\"bytes\":2,\"commit\":\"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\"inline\":{},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"naming\",\"sha256\":\"sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\"}",
-          "outbox": "{\"bytes\":265,\"commit\":\"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\"inline\":{\"promoter_app_id\":5200003,\"report_audience\":\"acse-promoter:prg-5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b\",\"report_url\":\"https://acse.example.com/api/promoter/v1/reports\",\"runtime_pubkey_fingerprint\":\"sha256:5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c\"},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"outbox\",\"sha256\":\"sha256:b147662392767322edbdd2fdc3a7da6a415990d08faf10f205fac4691e1f01f7\"}",
+          "outbox": "{\"bytes\":573,\"commit\":\"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\"inline\":{\"promoter_app_id\":5200003,\"promoter_key\":{\"audience\":\"acse-promote-gcp\",\"secret_name\":\"projects/example-acse-setup/secrets/acse-promoter-app-private-key\",\"store\":\"gcp_secret_manager\",\"workload_identity_provider\":\"//iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/acse-setup/providers/github-promoter\"},\"report_audience\":\"acse-promoter:prg-5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b\",\"report_url\":\"https://acse.example.com/api/promoter/v1/reports\",\"runtime_pubkey_fingerprint\":\"sha256:5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c\"},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"outbox\",\"sha256\":\"sha256:f4891ff37167572c37f93c065fa7f0c522b508a350a166e85fdb6efc418cb166\"}",
           "repositories": "{\"bytes\":108,\"commit\":\"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\"inline\":{\"outbox\":\"example-org/acse-outbox\",\"policies\":\"example-org/acse-policies\",\"setup\":\"example-org/acse-setup\"},\"parts\":0,\"schema\":\"settings-index-1.0\",\"section\":\"repositories\",\"sha256\":\"sha256:06c27804cefabc7321ecb38201d185683d34e28187b6bd8c2384367811139e9e\"}"
         },
         "settings_part_names": {},
@@ -1348,9 +1356,9 @@
             "repository": "example-org/acse-outbox",
             "branch": "main",
             "path": ".github/acse-promote.json",
-            "schema": "promoter-config-1.0",
-            "content": "{\n  \"promoter_config_format_version\": \"1.0\",\n  \"tenant\": \"example-saas-outbox\",\n  \"cloud\": {\n    \"provider\": \"aws\",\n    \"region\": \"ca-central-1\",\n    \"workflow_role\": \"arn:aws:iam::111122223333:role/acse-promoter-example-saas-outbox\",\n    \"namespace\": \"acse/example-saas-outbox\"\n  },\n  \"generated_from\": {\n    \"repository\": \"example-org/acse-setup\",\n    \"commit\": \"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\n    \"tenant_yaml_sha256\": \"sha256:8c1a49cdb1348ce041a55dcaa83468111b1f0ae0e2f6fec4a62e0d54264cfa4a\"\n  }\n}\n",
-            "pull_request_branch": "setup-apply/acse-promote-config-7a33bb27a645"
+            "schema": "promoter-config-1.1",
+            "content": "{\n  \"promoter_config_format_version\": \"1.1\",\n  \"tenant\": \"example-saas-outbox\",\n  \"cloud\": {\n    \"provider\": \"aws\",\n    \"region\": \"ca-central-1\",\n    \"workflow_role\": \"arn:aws:iam::111122223333:role/acse-promoter-example-saas-outbox\",\n    \"namespace\": \"acse/example-saas-outbox\"\n  },\n  \"promoter_key\": {\n    \"store\": \"gcp_secret_manager\",\n    \"workload_identity_provider\": \"//iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/acse-setup/providers/github-promoter\",\n    \"secret_name\": \"projects/example-acse-setup/secrets/acse-promoter-app-private-key\",\n    \"audience\": \"acse-promote-gcp\"\n  },\n  \"generated_from\": {\n    \"repository\": \"example-org/acse-setup\",\n    \"commit\": \"5bb5c0de5bb5c0de5bb5c0de5bb5c0de5bb5c0de\",\n    \"tenant_yaml_sha256\": \"sha256:ce3706687eacc7d800735a786820a0fe94f6830ee1f22e032ec2031a7e73379b\"\n  }\n}\n",
+            "pull_request_branch": "setup-apply/acse-promote-config-37e8a05785da"
           }
         }
       }

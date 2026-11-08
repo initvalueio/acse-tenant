@@ -170,16 +170,27 @@ locals {
     report_url                 = local.gate_report_url
   } : null
 
-  promoter_payload = local.has_outbox ? {
-    promoter_config_format_version = "1.0"
-    tenant                         = local.tenant
-    cloud = {
-      provider      = tostring(local.cloud.provider)
-      region        = local.region
-      workflow_role = local.promoter_role_arn
-      namespace     = local.namespace
-    }
-  } : null
+  # Where the promoter reads its App key: tenant.yaml's outbox.promoter_key (tenant-config-1.3), copied exactly into
+  # the file, which is then promoter-config-1.1. Absent: the file stays promoter-config-1.0, member for member as
+  # before, so a tenant that does not set it sees no change (the runtime's expected_config does the same).
+  promoter_key_raw       = local.has_outbox ? try(local.config.outbox.promoter_key, null) : null
+  promoter_key           = local.promoter_key_raw == null ? null : try({ for k, v in local.promoter_key_raw : tostring(k) => tostring(v) }, null)
+  promoter_key_gcp       = try(local.promoter_key.store, null) == "gcp_secret_manager"
+  promoter_config_schema = local.promoter_key == null ? "promoter-config-1.0" : "promoter-config-1.1"
+
+  promoter_payload = local.has_outbox ? merge(
+    {
+      promoter_config_format_version = local.promoter_key == null ? "1.0" : "1.1"
+      tenant                         = local.tenant
+      cloud = {
+        provider      = tostring(local.cloud.provider)
+        region        = local.region
+        workflow_role = local.promoter_role_arn
+        namespace     = local.namespace
+      }
+    },
+    { for k, v in { promoter_key = local.promoter_key } : k => v if v != null },
+  ) : null
 
   policies_default_branch = !local.gate_config_enabled ? null : coalesce(var.policies_default_branch, try(data.github_repository.policies[0].default_branch, null), "main")
 
@@ -202,7 +213,7 @@ locals {
         full_name      = local.outbox_full
         default_branch = local.outbox_default_branch
         path           = ".github/acse-promote.json"
-        schema         = "promoter-config-1.0"
+        schema         = local.promoter_config_schema
         template       = "${path.module}/templates/acse-promote.json.tftpl"
         payload_json   = jsonencode(local.promoter_payload)
         branch_stem    = "setup-apply/acse-promote-config"

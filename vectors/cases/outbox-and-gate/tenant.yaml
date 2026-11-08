@@ -1,5 +1,6 @@
-# Synthetic values. An Outbox and Direct tenant with the gate's audience set (tenant-config-1.2).
-version: "1.2"
+# Synthetic values. An Outbox and Direct tenant with the gate's audience set and the promoter key in the namespace,
+# named explicitly (tenant-config-1.3).
+version: "1.3"
 tenant: tenant-01
 cloud:
   provider: aws
@@ -46,5 +47,7 @@ outbox:
   report_url: "https://acse.example.com/api/promoter/v1/reports"
   report_audience: "acse-promoter:prg-0123456789abcdef0123456789abcdef"
   runtime_pubkey_fingerprint: "sha256:1212121212121212121212121212121212121212121212121212121212121212"
+  promoter_key:
+    store: aws_namespace
 approvals:
   change_ticket: optional

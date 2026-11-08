@@ -1,6 +1,7 @@
 # The two generated config files (spec 02e Amendments 2, 3 and 4 item 6; ledger 02e section 10.2a, section 11.0b):
 #   .github/acse-gate.json    in the policies repository (gate-config-1.0), when gate.audience and gate.report_url are set
-#   .github/acse-promote.json in the outbox repository   (promoter-config-1.0), for Outbox tenants
+#   .github/acse-promote.json in the outbox repository   (promoter-config-1.0, or 1.1 when tenant.yaml sets
+#                                                         outbox.promoter_key), for Outbox tenants
 # Rendered from the merged tenant.yaml, written with the customer's own GitHub credential. ACSE never proposes them.
 #
 # Idempotent: generated_from (provenance) is latched to the setup commit at which the rest of the file last changed,

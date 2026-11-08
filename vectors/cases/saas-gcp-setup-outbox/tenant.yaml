@@ -1,7 +1,8 @@
 # Synthetic values. A SaaS Outbox tenant whose setup credential is in a dedicated GCP project (spec 02e Amendment 6;
 # Koushik, 2026-11-07): the promoter's App key lives in that project, not in InitValue's namespace. cloud.* names
-# InitValue's runtime account and region.
-version: "1.2"
+# InitValue's runtime account and region. outbox.promoter_key copies modules/gcp-setup-credential's promoter outputs
+# (tenant-config-1.3).
+version: "1.3"
 tenant: example-saas-outbox
 cloud:
   provider: aws
@@ -22,3 +23,8 @@ outbox:
   report_url: "https://acse.example.com/api/promoter/v1/reports"
   report_audience: "acse-promoter:prg-5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b"
   runtime_pubkey_fingerprint: "sha256:5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c"
+  promoter_key:
+    store: gcp_secret_manager
+    workload_identity_provider: "//iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/acse-setup/providers/github-promoter"
+    secret_name: projects/example-acse-setup/secrets/acse-promoter-app-private-key
+    audience: acse-promote-gcp
