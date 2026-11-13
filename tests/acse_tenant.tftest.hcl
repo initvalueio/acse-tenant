@@ -1196,3 +1196,91 @@ run "refuses_a_gcp_promoter_key_with_an_aws_setup_credential" {
 
   expect_failures = [terraform_data.tenant_config]
 }
+
+# -- optional_permissions: opt-in reads ACSE's setup never requests (DEC-49; Koushik, 2026-11-13) ---------------------
+
+run "optional_permissions_default_grants_nothing" {
+  command   = plan
+  state_key = "optional_permissions_default_grants_nothing" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml             = file("vectors/cases/direct-minimal/tenant.yaml")
+    setup_commit            = "0123456789abcdef0123456789abcdef01234567"
+    policies_default_branch = "main"
+    generated_files_mode    = "direct"
+  }
+
+  override_data {
+    target = data.aws_caller_identity.current
+    values = { account_id = "111122223333" }
+  }
+  override_data {
+    target = data.aws_region.current
+    values = { region = "us-east-1" }
+  }
+
+  assert {
+    condition     = length(aws_iam_role_policy.optional_reads) == 0
+    error_message = "Opt-in only: with no optional permission named, the scanner role gains nothing."
+  }
+}
+
+run "optional_permissions_opted_in" {
+  command   = plan
+  state_key = "optional_permissions_opted_in" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml             = file("vectors/cases/direct-minimal/tenant.yaml")
+    setup_commit            = "0123456789abcdef0123456789abcdef01234567"
+    policies_default_branch = "main"
+    generated_files_mode    = "direct"
+    optional_permissions = {
+      aws   = ["macie2:GetMacieSession"]
+      azure = ["Graph:AuditLog.Read.All"]
+    }
+  }
+
+  override_data {
+    target = data.aws_caller_identity.current
+    values = { account_id = "111122223333" }
+  }
+  override_data {
+    target = data.aws_region.current
+    values = { region = "us-east-1" }
+  }
+
+  assert {
+    condition     = aws_iam_role_policy.optional_reads[0].role == "ACSEReadOnlyScanner" && jsondecode(aws_iam_role_policy.optional_reads[0].policy).Statement[0].Action == ["macie2:GetMacieSession"]
+    error_message = "The AWS opt-in is one inline policy on the scanner role, with exactly the actions named."
+  }
+  assert {
+    condition     = output.optional_permissions.aws["macie2:GetMacieSession"].checks == ["aws-macie-enabled"] && output.optional_permissions.azure["Graph:AuditLog.Read.All"].granted == false && length(output.optional_permissions.gcp) == 0
+    error_message = "Each opted-in permission names the checks it unlocks; GCP and Azure are recorded, not granted (DEC-49)."
+  }
+}
+
+run "optional_permissions_refuses_an_unknown_permission" {
+  command   = plan
+  state_key = "optional_permissions_refuses_an_unknown_permission" # each run starts from its own empty state
+
+  variables {
+    tenant_yaml             = file("vectors/cases/direct-minimal/tenant.yaml")
+    setup_commit            = "0123456789abcdef0123456789abcdef01234567"
+    policies_default_branch = "main"
+    generated_files_mode    = "direct"
+    optional_permissions = {
+      aws = ["s3:GetObject"]
+    }
+  }
+
+  override_data {
+    target = data.aws_caller_identity.current
+    values = { account_id = "111122223333" }
+  }
+  override_data {
+    target = data.aws_region.current
+    values = { region = "us-east-1" }
+  }
+
+  expect_failures = [var.optional_permissions]
+}

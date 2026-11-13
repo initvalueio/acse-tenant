@@ -105,3 +105,13 @@ variable "ruleset_enforcement" {
   type        = string
   default     = "evaluate"
 }
+
+variable "optional_permissions" {
+  description = "Opt-in reads ACSE's setup never requests, per cloud (empty by default). Each unlocks named checks; see terraform.tfvars.example."
+  type = object({
+    aws   = optional(list(string), [])
+    gcp   = optional(list(string), [])
+    azure = optional(list(string), [])
+  })
+  default = {}
+}
