@@ -98,6 +98,8 @@ Further rules:
 | `create_github_oidc_provider` | `false` | Create `token.actions.githubusercontent.com` in the account. It normally exists already, because the workflow uses it |
 | `manage_promoter_role` | `true` | Create `cloud.workflow_role` (Outbox tenants) |
 | `outbox_oidc_subject_includes_job_workflow_ref` | `false` | Bind the role to `acse-promote.yml` through the outbox's OIDC subject template |
+| `optional_permissions` | `{}` | Opt-in reads ACSE's setup never requests (`aws`, `gcp`, `azure` lists), each unlocking named checks; AWS ones are granted on `aws_scanner_role_name`, GCP and Azure recorded only (DEC-49) |
+| `aws_scanner_role_name` | `"ACSEReadOnlyScanner"` | The scanner role the AWS optional permissions are attached to |
 | `ruleset_enforcement` | `"evaluate"` | `evaluate`, `active` or `disabled`. Switch to `active` after review; readiness passes only when the ruleset is active |
 | `ruleset_repository_include` / `_exclude` | `["~ALL"]` / `[]` | The repositories the rulesets cover |
 | `ruleset_bypass_integration_ids` | `[]` | Your bots' App ids, **including the App this apply uses**. Never ACSE Change |

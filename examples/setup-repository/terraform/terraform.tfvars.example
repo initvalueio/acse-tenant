@@ -30,3 +30,21 @@ apply_environment_reviewers = {
 
 other_bot_app_ids   = []
 ruleset_enforcement = "evaluate"
+
+# Optional permissions: opt in to reads ACSE's setup never requests. Empty grants nothing more; without one, only the
+# checks it unlocks read "Not judged: needs permission X (not requested by setup)". Uncomment what you want, merge, and
+# the setup pipeline (acse-setup-apply.yml) applies it.
+#
+#   aws   "macie2:GetMacieSession"                                              -> aws-macie-enabled
+#         (granted here: one inline policy, acse-optional-reads, on ACSEReadOnlyScanner in this account)
+#   gcp   "policyanalyzer.serviceAccountKeyLastAuthenticationActivities.query" -> gcp-iam-sa-key-unused
+#   azure "Graph:AuditLog.Read.All"                                             -> azure-entra-vm-access-users-mfa,
+#                                                                                  azure-entra-users-mfa
+#   azure "Graph:RoleManagement.Read.Directory"                                 -> (no check reads it yet)
+#   azure "Microsoft.Authorization/roleAssignments/read at /"                   -> azure-rbac-user-access-admin-restricted
+#         (GCP and Azure: recorded and validated here; granted by you in that cloud until the module grants them, DEC-49)
+optional_permissions = {
+  # aws   = ["macie2:GetMacieSession"]
+  # gcp   = ["policyanalyzer.serviceAccountKeyLastAuthenticationActivities.query"]
+  # azure = ["Graph:AuditLog.Read.All"]
+}

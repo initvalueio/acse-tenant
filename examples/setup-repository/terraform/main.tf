@@ -52,6 +52,9 @@ module "acse_tenant" {
   setup_apply_role_name              = var.setup_apply_role_name
   setup_check_role_name              = var.setup_check_role_name
   setup_apply_environment_reviewers  = var.apply_environment_reviewers
+
+  # Opt-in reads ACSE's setup never requests (terraform.tfvars.example lists each one and the checks it unlocks).
+  optional_permissions = var.optional_permissions
 }
 
 output "acse_tenant" {
